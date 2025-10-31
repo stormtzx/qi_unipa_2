@@ -88,3 +88,61 @@ Versione aggiornata del package "qi_unipa" creato dai colleghi del laboratorio d
 - Python 3.10+
 - NAOqi SDK (Softbank Robotics)
 - std_msgs, sensor_msgs (ROS2)
+
+STRUTTURA DEI PACKAGE:
+
+qi_unipa_2_interfaces
+├── action
+│   ├── Talking.action
+│   └── Walking.action
+├── CMakeLists.txt
+├── LICENSE
+├── msg
+│   ├── Bumper.msg
+│   ├── Sonar.msg
+│   ├── StringArray.msg
+│   └── Track.msg
+├── package.xml
+└── srv
+    ├── GetImage.srv
+    ├── GetPosition.srv
+    ├── SetHand.srv
+    ├── SetJointAngles.srv
+    ├── SetPosture.srv
+    └── SetState.srv
+
+qi_unipa_2
+├── html_pages
+│   ├── attivo.html
+│   ├── autovalutazione_3_opzioni.html
+│   ├── autovalutazione_5_opzioni.html
+│   ├── dati_must.html
+│   ├── disattivo.html
+│   ├── minicog_orologio.html
+│   ├── minicog_parole.html
+│   ├── minicog_parole_verifica.html
+│   ├── registrazione.html
+│   ├── si_no.html
+│   ├── test_emoji.html
+│   └── thinking.html
+├── include
+│   └── qi_unipa_2
+├── launch
+│   └── qi_unipa_2.launch.py
+├── LICENSE
+├── package.xml
+├── qi_unipa_2
+│   ├── __init__.py
+│   ├── qi_unipa_2_movement.py
+│   ├── qi_unipa_2_sensor.py
+│   ├── qi_unipa_2_server.py
+│   ├── qi_unipa_2_speech.py
+│   ├── qi_unipa_2_stt.py
+│   ├── qi_unipa_2_tablet.py
+│   ├── qi_unipa_2_tracking.py
+│   ├── qi_unipa_2_vision.py
+│   └── utils.py
+├── resource
+│   └── qi_unipa_2
+├── setup.cfg
+└── setup.py
