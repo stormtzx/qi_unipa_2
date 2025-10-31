@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Inserisci peso e altezza</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background-color: #f0f0f0;
+      text-align: center;
+      padding-top: 40px;
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 30px;
+    }
+    label {
+      display: block;
+      font-size: 18px;
+      margin-top: 20px;
+    }
+    input[type="number"] {
+      font-size: 18px;
+      padding: 8px;
+      width: 60%;
+      max-width: 200px;
+      margin-top: 5px;
+    }
+    button {
+      margin-top: 30px;
+      font-size: 20px;
+      padding: 10px 30px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Inserisci il tuo peso e la tua altezza</h1>
+
+  <form action="" method="get" onsubmit="submitForm(); return false;">
+    <label for="peso">Peso (kg):</label>
+    <input type="number" id="peso" name="peso" min="20" max="200" step="0.1" required>
+
+    <label for="altezza">Altezza (cm):</label>
+    <input type="number" id="altezza" name="altezza" min="100" max="220" step="0.1" required>
+
+    <button type="submit">Invia</button>
+  </form>
+
+  <script>
+    function submitForm() {
+      var peso = document.getElementById("peso").value;
+      var altezza = document.getElementById("altezza").value;
+      var url = "dati_must.html?peso=" + encodeURIComponent(peso) + "&altezza=" + encodeURIComponent(altezza);
+      window.location.href = url;
+    }
+  </script>
+
+</body>
+</html>

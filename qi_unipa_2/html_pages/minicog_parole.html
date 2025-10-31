@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Visualizza Parole</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f0f0f0;
+      margin: 0;
+      text-align: center;
+      padding-top: 50px;
+    }
+    .word {
+      font-size: 2.5rem;
+      margin: 20px 0;
+      color: #333;
+    }
+    .next-button {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      padding: 15px 30px;
+      font-size: 1.2rem;
+      border: none;
+      border-radius: 10px;
+      background-color: #4CAF50;
+      color: white;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="word" id="w1">...</div>
+  <div class="word" id="w2">...</div>
+  <div class="word" id="w3">...</div>
+
+  <button class="next-button" onclick="prosegui()">Avanti</button>
+
+  <script type="text/javascript">
+    function getQueryVariable(name) {
+      var query = window.location.search.substring(1);
+      var vars = query.split("&");
+      for (var i = 0; i < vars.length; i++) {
+        var pair = vars[i].split("=");
+        if (decodeURIComponent(pair[0]) == name) {
+          return decodeURIComponent(pair[1].replace(/\+/g, " "));
+        }
+      }
+      return "---";
+    }
+
+    var w1 = getQueryVariable("w1");
+    var w2 = getQueryVariable("w2");
+    var w3 = getQueryVariable("w3");
+
+    document.getElementById("w1").textContent = w1;
+    document.getElementById("w2").textContent = w2;
+    document.getElementById("w3").textContent = w3;
+
+    function prosegui() {
+    var query = "esito=fine_visualizzazione_3_parole" +
+                "&w1=" + encodeURIComponent(w1) +
+                "&w2=" + encodeURIComponent(w2) +
+                "&w3=" + encodeURIComponent(w3);
+
+    window.location.href = "minicog_parole.html?" + query;
+
+    if (typeof QiSession !== "undefined") {
+      QiSession(function(session) {
+        session.service("ALTabletService").then(function(tablet) {
+          tablet.hideWebview();
+        });
+      });
+    }
+  }
+
+  </script>
+
+</body>
+</html>

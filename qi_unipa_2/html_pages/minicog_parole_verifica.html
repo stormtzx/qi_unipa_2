@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Seleziona 3 parole</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f0f0f0;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100vh;
+      position: relative;
+    }
+
+    h2 {
+      margin-bottom: 20px;
+    }
+
+    .buttons-grid {
+      display: grid;
+      grid-template-columns: repeat(3, auto);
+      gap: 15px;
+      margin-bottom: 60px;
+    }
+
+    .word-button {
+      padding: 15px 25px;
+      font-size: 1.2rem;
+      border: 2px solid #333;
+      border-radius: 10px;
+      background-color: white;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    .word-button.selected {
+      background-color: #4CAF50;
+      color: white;
+      border-color: #4CAF50;
+    }
+
+    .next-button {
+      position: absolute;
+      bottom: 30px;
+      right: 30px;
+      padding: 15px 30px;
+      font-size: 1.2rem;
+      border: none;
+      border-radius: 10px;
+      background-color: #ccc;
+      color: white;
+      cursor: not-allowed;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+    }
+
+    .next-button.active {
+      background-color: #4CAF50;
+      cursor: pointer;
+    }
+
+    .next-button.active:hover {
+      background-color: #45a049;
+    }
+  </style>
+</head>
+<body>
+  <h2>Seleziona 3 parole</h2>
+  <div class="buttons-grid" id="buttonContainer"></div>
+
+  <button class="next-button" id="nextBtn" onclick="prosegui()" disabled>Avanti</button>
+
+  <script type="text/javascript">
+    var parole = [
+      "Mela", "Chiave", "Libro", "Gatto", "Sedia", "Fiume",
+      "Fiore", "Orologio", "Pane", "Albero", "Scuola", "Luce"
+    ];
+
+    var selezionate = [];
+    var container = document.getElementById("buttonContainer");
+    var nextBtn = document.getElementById("nextBtn");
+
+    for (var i = 0; i < parole.length; i++) {
+      var parola = parole[i];
+      var btn = document.createElement("button");
+      btn.textContent = parola;
+      btn.className = "word-button";
+      btn.setAttribute("data-parola", parola);
+      btn.onclick = function () {
+        toggleParola(this, this.getAttribute("data-parola"));
+      };
+      container.appendChild(btn);
+    }
+
+    function toggleParola(button, parola) {
+      var idx = selezionate.indexOf(parola);
+      if (idx > -1) {
+        selezionate.splice(idx, 1);
+        button.classList.remove("selected");
+      } else if (selezionate.length < 3) {
+        selezionate.push(parola);
+        button.classList.add("selected");
+      }
+
+      if (selezionate.length === 3) {
+        nextBtn.className = "next-button active";
+        nextBtn.disabled = false;
+      } else {
+        nextBtn.className = "next-button";
+        nextBtn.disabled = true;
+      }
+    }
+
+    function prosegui() {
+      var query = "s1=" + encodeURIComponent(selezionate[0]) +
+                  "&s2=" + encodeURIComponent(selezionate[1]) +
+                  "&s3=" + encodeURIComponent(selezionate[2]);
+
+      window.location.href = "minicog_parole_verifica.html?" + query;
+
+      if (typeof QiSession !== "undefined") {
+        QiSession(function(session) {
+          session.service("ALTabletService").then(function(tablet) {
+            tablet.hideWebview();
+          });
+        });
+      }
+    }
+  </script>
+</body>
+</html>

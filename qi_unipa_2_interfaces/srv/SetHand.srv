@@ -1,0 +1,7 @@
+# Request
+string hand
+int32 fun
+---
+# Response
+bool success
+string message

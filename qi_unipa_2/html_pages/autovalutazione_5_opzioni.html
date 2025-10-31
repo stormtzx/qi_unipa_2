@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pagina con 5 bottoni</title>
+  <style type="text/css">
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+      font-size: 1.8rem;
+      color: #333;
+    }
+
+    #cronometro {
+      font-size: 1.2rem;
+      margin-bottom: 20px;
+      color: #555;
+    }
+
+    .button-container {
+      display: block;
+    }
+
+    .action-button {
+      display: block;
+      width: 80%;
+      max-width: 300px;
+      margin: 10px auto;
+      padding: 15px;
+      font-size: 1.1rem;
+      border: none;
+      border-radius: 10px;
+      background-color: #4CAF50;
+      color: white;
+      cursor: pointer;
+    }
+
+    .action-button:hover {
+      background-color: #45a049;
+    }
+  </style>
+</head>
+<body>
+
+  <h1 id="titolo">Scegli un'opzione</h1>
+  <div id="cronometro">Tempo trascorso: 0 secondi</div>
+
+  <div class="button-container">
+    <button id="btn1" class="action-button" onclick="azione(4)">Opzione 1</button>
+    <button id="btn2" class="action-button" onclick="azione(3)">Opzione 2</button>
+    <button id="btn3" class="action-button" onclick="azione(2)">Opzione 3</button>
+    <button id="btn4" class="action-button" onclick="azione(1)">Opzione 4</button>
+    <button id="btn5" class="action-button" onclick="azione(0)">Opzione 5</button>
+  </div>
+
+  <script type="text/javascript">
+    function getQueryParam(name) {
+      var query = window.location.search.substring(1);
+      var vars = query.split("&");
+      for (var i = 0; i < vars.length; i++) {
+        var pair = vars[i].split("=");
+        if (decodeURIComponent(pair[0]) === name) {
+          return decodeURIComponent(pair[1].replace(/\+/g, " "));
+        }
+      }
+      return null;
+    }
+
+    function initButtons() {
+      for (var i = 1; i <= 5; i++) {
+        var op = getQueryParam("op" + i) || "Opzione " + i;
+        var btn = document.getElementById("btn" + i);
+        if (btn) btn.innerHTML = op;
+      }
+    }
+
+    function azione(numero) {
+      var parametro = getQueryParam("param") || "test1";
+      var valore = getQueryParam("azioni" + numero) || numero;
+      var base = window.location.pathname.split("?")[0];
+      window.location.href = base + "?" + encodeURIComponent(parametro) + "=" + encodeURIComponent(valore);
+    }
+
+    // Avvio del cronometro
+    var secondi = 0;
+    setInterval(function () {
+      secondi++;
+      var cronometro = document.getElementById("cronometro");
+      if (cronometro) {
+        cronometro.innerHTML = "Tempo trascorso: " + secondi + " secondi";
+      }
+    }, 1000);
+
+    window.onload = initButtons;
+  </script>
+
+</body>
+</html>

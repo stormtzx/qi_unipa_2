@@ -1,0 +1,10 @@
+# Goal
+string message
+string agente
+string percept
+---
+# Result
+bool talking_complete
+---
+# Feedback
+bool is_talking

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pepper - Sistema di Assistenza Attivo</title>
+<style>
+    /* ------------------------------------ */
+    /* STILI GLOBALI E SFONDO               */
+    /* ------------------------------------ */
+    body {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        /* Sfondo rilassante: Toni del blu e viola chiaro (affidabilità e calma) */
+        background: linear-gradient(135deg, #a8c0ff 0%, #3f2b96 100%);
+        overflow: hidden;
+        position: relative;
+    }
+
+    /* Animazione di sfondo (bolle o luce diffusa) per dare movimento */
+    body::before {
+        content: '';
+        position: absolute;
+        width: 300px;
+        height: 300px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        animation: subtleFloat 15s infinite ease-in-out;
+        box-shadow: 0 0 150px 50px rgba(255, 255, 255, 0.15);
+        pointer-events: none;
+    }
+
+    @keyframes subtleFloat {
+        0% { transform: translate(-50vw, -50vh) scale(1); opacity: 0.8; }
+        50% { transform: translate(50vw, 50vh) scale(1.1); opacity: 0.6; }
+        100% { transform: translate(-50vw, -50vh) scale(1); opacity: 0.8; }
+    }
+
+    /* ------------------------------------ */
+    /* TITOLO E TESTO                       */
+    /* ------------------------------------ */
+    h1 {
+        font-size: 2.5em;
+        color: #f0f0f0; /* Bianco morbido */
+        text-align: center;
+        margin: 40px 0 0 0;
+        text-shadow: 0 0 15px rgba(255, 255, 255, 0.5), 0 0 5px rgba(0, 0, 0, 0.8);
+        letter-spacing: 2px;
+        animation: pulseText 2s infinite alternate;
+        z-index: 1;
+    }
+    
+    .subtitle {
+        font-size: 1.2em;
+        color: #d0d0d0;
+        margin-top: 10px;
+        text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+        z-index: 1;
+    }
+
+    @keyframes pulseText {
+        0% { opacity: 1; transform: scale(1); }
+        100% { opacity: 0.9; transform: scale(1.02); }
+    }
+
+    /* ------------------------------------ */
+    /* SIMULAZIONE TESTA DI PEPPER ATTIVA   */
+    /* ------------------------------------ */
+    .pepper-head {
+        width: 220px;
+        height: 220px;
+        background: #f0f0f0; /* Colore scocca bianca */
+        border-radius: 50%;
+        position: relative;
+        border: 8px solid #3f2b96; /* Bordo color viola del tema */
+        box-shadow: 0 0 40px rgba(63, 43, 150, 0.8), 0 0 15px #ffffff inset; /* Bagliore e luce interna */
+        animation: activeGlow 3s infinite alternate;
+        z-index: 1;
+    }
+
+    @keyframes activeGlow {
+        0% { box-shadow: 0 0 40px rgba(63, 43, 150, 0.5), 0 0 15px #ffffff inset; }
+        100% { box-shadow: 0 0 50px rgba(63, 43, 150, 1), 0 0 20px #ffffff inset; }
+    }
+
+    /* Occhi grandi di Pepper */
+    .eye-pair {
+        display: flex;
+        justify-content: space-between;
+        width: 70%;
+        position: absolute;
+        top: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    .eye {
+        width: 30px;
+        height: 30px;
+        background: #00aaff; /* Colore attivo, blu rassicurante */
+        border-radius: 50%;
+        border: 2px solid #0056b3;
+        box-shadow: 0 0 10px rgba(0, 170, 255, 0.8);
+        animation: eyeBlink 4s infinite; /* Simula un battito di ciglia o scansione */
+    }
+    
+    .eye:nth-child(even) {
+        animation-delay: 0.2s; /* Ritardo leggero per variare l'animazione */
+    }
+
+    @keyframes eyeBlink {
+        0%, 10%, 100% { transform: scaleY(1); }
+        5% { transform: scaleY(0.2); } /* Simula un "battito" breve */
+    }
+
+    /* Bocca sorridente per friendly-AI */
+    .mouth {
+        position: absolute;
+        bottom: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 100px;
+        height: 40px;
+        background: #ff5722; /* Colore caldo e amichevole (Arancio) */
+        border-radius: 0 0 80px 80px;
+        border-top: none;
+        box-shadow: 0 5px 15px rgba(255, 87, 34, 0.5);
+        animation: subtleSmile 6s infinite ease-in-out;
+    }
+
+    @keyframes subtleSmile {
+        0% { transform: translateX(-50%) scaleX(1); }
+        50% { transform: translateX(-50%) scaleX(0.95); }
+        100% { transform: translateX(-50%) scaleX(1); }
+    }
+
+    /* Antenna sulla testa di Pepper (Sensore) */
+    .antenna {
+        position: absolute;
+        top: -40px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 10px;
+        height: 30px;
+        background: #0056b3;
+        border-radius: 5px 5px 0 0;
+        box-shadow: 0 -5px 10px rgba(0, 86, 179, 0.8);
+    }
+</style>
+</head>
+<body>
+    <div class="pepper-head">
+        <div class="antenna"></div>
+        <div class="eye-pair">
+            <div class="eye"></div>
+            <div class="eye"></div>
+        </div>
+        <div class="mouth"></div>
+    </div>
+    <h1>Sistema Attivo</h1>
+    <p class="subtitle">Monitoraggio e assistenza in tempo reale</p>
+</body>
+</html>
