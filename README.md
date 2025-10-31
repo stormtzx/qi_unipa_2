@@ -1,6 +1,6 @@
 # qi_unipa_2
 
-Versione aggiornata del package "qi_unipa" creato dai colleghi del laboratorio dell'università di Palermo tra il 2024 e 2025. Questa versione implementa le stesse funzionalità precedenti ma diverse di queste sono state convertite da topic ad action e altre da topic a service. Sono presenti DUE package: uno è l'interfaccia contenente i services, actions e topics (che secondo ROS2 Humble DEVONO essere predisposti separatamente in un package munito di CMakeLists) e l'altro è il package vero e proprio con i nodi di implementazione.
+Versione aggiornata del package "qi_unipa" creato dai colleghi del laboratorio dell'università di Palermo tra il 2024 e 2025. Questa versione implementa le stesse funzionalità precedenti ma diverse di queste sono state convertite da topic ad action e altre da topic a service. Sono presenti DUE package: uno è l'interfaccia contenente i services, actions e topics (che secondo ROS2 Humble DEVONO essere predisposti separatamente in un package munito di CMakeLists) e si chiama "qi_unipa_2_interfaces" e l'altro è il package vero e proprio con i nodi di implementazione chiamato appunto "qi_unipa_2".
 
 ## Modifiche Implementate
 
