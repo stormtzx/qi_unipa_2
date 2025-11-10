@@ -8,7 +8,7 @@ import time
 import numpy as np
 import cv2
 from qi_unipa_2.utils import Utils
-from qi_unipa_2_interfaces.srv import GetImage, GetCoordinates
+from qi_unipa_2_interfaces.srv import GetImage, GetCameraCoordinates
 from qi_unipa_2_interfaces.msg import Emotion
 
 
@@ -67,7 +67,7 @@ class QiUnipa2_vision(Node):
                 self.memory = None
 
         # Services
-        self.get_coords_service = self.create_service(GetCoordinates,'/pepper/services/get_coordinates',self.get_coordinates)
+        self.get_coords_service = self.create_service(GetCameraCoordinates,'/pepper/services/get_camera_coordinates',self.get_camera_coordinates)
             
         # Publisher per le immagini
         self.camera_pub = self.create_publisher(Image, '/pepper/topics/camera_call', 10)
@@ -239,8 +239,9 @@ class QiUnipa2_vision(Node):
             # Nessuna emozione rilevata (silenzioso)
             pass
 
+
     #Funzione per stimare le coordinate tramite la camera 3d di pepper
-    def get_coordinates(self, request, response):
+    def get_camera_coordinates(self, request, response):
         """
         Service per ottenere coordinate 3D da depth camera.
         Converte pixel (x, y) in coordinate robot frame (x, y, z).
