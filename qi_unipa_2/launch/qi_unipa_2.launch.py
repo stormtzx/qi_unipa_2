@@ -61,16 +61,30 @@ def generate_launch_description():
         }]
     )
 
-    qi_unipa_2_stt_node = Node(
-        package='qi_unipa_2',
-        executable='qi_unipa_2_stt',  
-        name='qi_unipa_2_stt', #Solo STT
-        output='screen',
-        parameters=[{
-            'mock_mode': LaunchConfiguration('mock_mode')
-        }]
+    qi_unipa_2_audio_node = Node(
+    package='qi_unipa_2',
+    executable='qi_unipa_2_audio',
+    name='qi_unipa_2_audio',
+    output='screen',
+    parameters=[{
+        'mock_mode': LaunchConfiguration('mock_mode'),
+        'ip': LaunchConfiguration('ip'),
+        'port': LaunchConfiguration('port')
+    }]
     )
 
+
+    qi_unipa_2_reference_node = Node(
+    package='qi_unipa_2',
+    executable='qi_unipa_2_reference',
+    name='qi_unipa_2_reference',
+    output='screen',
+    parameters=[{
+        'mock_mode': LaunchConfiguration('mock_mode'),
+        'ip': LaunchConfiguration('ip'),
+        'port': LaunchConfiguration('port')
+    }]
+    )
 
     qi_unipa_2_tracking_node = Node(
         package='qi_unipa_2',
@@ -126,9 +140,10 @@ def generate_launch_description():
         qi_unipa_2_sensor_node,
         qi_unipa_2_movement_node,
         qi_unipa_2_speech_node,
-        qi_unipa_2_stt_node,
+        qi_unipa_2_audio_node,
         qi_unipa_2_tracking_node,
         qi_unipa_2_tablet_node,
         qi_unipa_2_server_node,
+        qi_unipa_2_reference_node,
         qi_unipa_2_vision_node
     ])

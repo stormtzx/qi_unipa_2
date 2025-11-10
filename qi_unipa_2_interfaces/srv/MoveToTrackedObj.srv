@@ -1,0 +1,10 @@
+# Naviga verso ultima posizione oggetto tracciato
+
+float32 approach_distance    # Distanza stop dall'oggetto (metri, default: 0.5)
+
+---
+
+bool success
+string message
+float32 target_x             # Coordinate target calcolate
+float32 target_y

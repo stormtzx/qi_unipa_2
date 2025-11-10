@@ -6,8 +6,10 @@ import sys
 from std_msgs.msg import Int32
 from geometry_msgs.msg import Vector3
 from qi_unipa_2.utils import Utils
-from qi_unipa_2_interfaces.srv import SetState, SetPosture, SetJointAngles, SetHand, GetPosition
-from qi_unipa_2_interfaces.action import Walking
+from qi_unipa_2_interfaces.srv import SetState, SetPosture, SetJointAngles, SetHand
+from qi_unipa_2_interfaces.action import Walking, Navigating
+import math
+
 
 class QiUnipa2_movement(Node):
     def __init__(self):
@@ -22,7 +24,9 @@ class QiUnipa2_movement(Node):
         mock_mode = self.get_parameter('mock_mode').get_parameter_value().bool_value
         ip = self.get_parameter('ip').get_parameter_value().string_value
         port = self.get_parameter('port').get_parameter_value().integer_value
-        
+        self._localization_active = False
+        self._current_map_name = None
+
         # Crea Utils
         utils = Utils(ip=ip, port=port, mock_mode=mock_mode)
         qos_reliable_10 = utils.get_QoS('reliable', 10)
@@ -42,6 +46,7 @@ class QiUnipa2_movement(Node):
                 if self.session is None:
                     raise RuntimeError("Sessione None da utils")
                 
+                self.navigation = self.session.service("ALNavigation")
                 self.motion = self.session.service("ALMotion")
                 self.posture = self.session.service("ALRobotPosture")
                 self.get_logger().info("Connesso a Pepper!")
@@ -51,16 +56,19 @@ class QiUnipa2_movement(Node):
                 self.session = None
                 self.motion = None
                 self.posture = None
+                self.navigation = None
+
 
         # Dichiarazione service
         self.create_service(SetState, '~/set_state', self.set_state, qos_profile=qos_reliable_10)
         self.create_service(SetJointAngles, '~/set_joint_angles', self.set_joint_angles, qos_profile=qos_reliable_10)
         self.create_service(SetPosture, '~/set_posture', self.set_posture, qos_profile=qos_reliable_10)
         self.create_service(SetHand, '~/set_hand', self.set_hand, qos_profile=qos_reliable_10)
-        self.create_service(GetPosition, '~/get_position', self.get_position, qos_profile=qos_reliable_10)
         
         # Dichiarazione action
         self._action_server_walking = ActionServer(self, Walking, '~/walking', self.walking)
+          # ActionServer Navigating (NAVIGAZIONE AUTONOMA CON OBSTACLE AVOIDANCE)
+        self.navigating_server = ActionServer(self,Navigating,'navigating',self.navigating)
 
 
 
@@ -213,28 +221,167 @@ class QiUnipa2_movement(Node):
             walking_feedback.current_status = str(e)
             return result
 
-
-    # Callback per il service: GetPosition
-    def get_position(self, request, response):
-        if self.motion is None:
-            self.get_logger().warn("[MOCK] get_position chiamato")
-            # Ritorna posizione fittizia
-            response.x = 0.0
-            response.y = 0.0
-            response.theta = 0.0
-            return response
+    # Riferito all'action: Navigating
+    def navigating(self, goal_handle):
+        """Action callback per navigazione autonoma con obstacle avoidance"""
+        target_x = goal_handle.request.target_x
+        target_y = goal_handle.request.target_y
         
+        # Parametri opzionali (default se non specificati)
+        use_map = getattr(goal_handle.request, 'use_map', False)
+        map_name = getattr(goal_handle.request, 'map_name', 'default')
+        
+        self.get_logger().info(f"Navigating to ({target_x}, {target_y}), use_map={use_map}")
+
+        # Feedback iniziale
+        feedback = Navigating.Feedback()
+        feedback.status = "planning"
+        feedback.current_x = 0.0
+        feedback.current_y = 0.0
+        feedback.distance_remaining = 0.0
+        goal_handle.publish_feedback(feedback)
+
+        # ===== MOCK MODE =====
+        if self.motion is None or self.navigation is None:
+            self.get_logger().warn(f"[MOCK] Navigating simulato")
+            
+            feedback.status = "moving"
+            feedback.current_x = target_x * 0.5
+            feedback.current_y = target_y * 0.5
+            feedback.distance_remaining = math.sqrt((target_x - feedback.current_x)**2 + 
+                                                    (target_y - feedback.current_y)**2)
+            goal_handle.publish_feedback(feedback)
+            
+            goal_handle.succeed()
+            result = Navigating.Result()
+            result.success = True
+            result.status = "reached"
+            result.final_x = target_x
+            result.final_y = target_y
+            result.distance_to_target = 0.0
+            return result
+
+        # ===== ESECUZIONE REALE =====
         try:
-            pose = self.motion.getRobotPosition(False)
-            response.x = pose[0]
-            response.y = pose[1]
-            response.theta = pose[2]
+            # GESTIONE MAPPING (inline, se richiesto)
+            if use_map:
+                map_path = f"/home/nao/maps/{map_name}.explo"
+                
+                # Carica mappa solo se diversa da quella corrente
+                if not (self._localization_active and self._current_map_name == map_name):
+                    self.get_logger().info(f"Caricamento mappa: {map_path}")
+                    
+                    feedback.status = "loading_map"
+                    goal_handle.publish_feedback(feedback)
+                    
+                    # Ferma localization precedente
+                    if self._localization_active:
+                        self.navigation.stopLocalization()
+                    
+                    # Carica e relocalizza
+                    try:
+                        self.navigation.loadExploration(map_path)
+                        self.navigation.relocalizeInMap([0.0, 0.0])
+                        self.navigation.startLocalization()
+                        
+                        self._localization_active = True
+                        self._current_map_name = map_name
+                        self.get_logger().info(f"Mappa '{map_name}' caricata")
+                        
+                    except Exception as e:
+                        self.get_logger().error(f"Errore caricamento mappa: {e}")
+                        goal_handle.abort()
+                        
+                        result = Navigating.Result()
+                        result.success = False
+                        result.status = "map_not_found"
+                        result.final_x = 0.0
+                        result.final_y = 0.0
+                        result.distance_to_target = 0.0
+                        return result
+            
+            # Ottieni posizione iniziale
+            if use_map:
+                start_pose = self.navigation.getRobotPositionInMap()
+            else:
+                start_pose = self.motion.getRobotPosition(False)
+            
+            start_x, start_y = start_pose[0], start_pose[1]
+            initial_distance = math.sqrt((target_x - start_x)**2 + (target_y - start_y)**2)
+            
+            self.get_logger().info(f"Start: ({start_x:.2f}, {start_y:.2f}), distanza: {initial_distance:.2f}m")
+            
+            # Warning per distanze > 3m in modalità relativa
+            if not use_map and initial_distance > 3.0:
+                self.get_logger().warn(f"Target oltre 3m ({initial_distance:.2f}m),consigliato uso di use_map=true")
+            
+            # Feedback moving
+            feedback.status = "moving"
+            feedback.current_x = start_x
+            feedback.current_y = start_y
+            feedback.distance_remaining = initial_distance
+            goal_handle.publish_feedback(feedback)
+            
+            # NAVIGAZIONE (bloccante)
+            if use_map:
+                success = self.navigation.navigateToInMap([target_x, target_y, 0.0])
+            else:
+                success = self.navigation.navigateTo(target_x, target_y)
+            
+            # Posizione finale
+            if use_map:
+                final_pose = self.navigation.getRobotPositionInMap()
+            else:
+                final_pose = self.motion.getRobotPosition(False)
+            
+            final_x, final_y = final_pose[0], final_pose[1]
+            distance_to_target = math.sqrt((target_x - final_x)**2 + (target_y - final_y)**2)
+            
+            # Risultato
+            result = Navigating.Result()
+            result.success = success
+            result.final_x = final_x
+            result.final_y = final_y
+            result.distance_to_target = distance_to_target
+            
+            if success:
+                result.status = "reached"
+                self.get_logger().info(f"Target raggiunto! Final: ({final_x:.2f}, {final_y:.2f})")
+                goal_handle.succeed()
+            else:
+                result.status = "blocked"
+                self.get_logger().warn(f"Bloccato. Final: ({final_x:.2f}, {final_y:.2f})")
+                goal_handle.abort()
+            
+            return result
+
+            
+            
         except Exception as e:
-            self.get_logger().error(f"Errore get_position: {e}")
-            response.x = 0.0
-            response.y = 0.0
-            response.theta = 0.0
-        return response
+            self.get_logger().error(f"Errore: {e}")
+            goal_handle.abort()
+            
+            result = Navigating.Result()
+            result.success = False
+            result.status = "error"
+            
+            try:
+                if use_map:
+                    error_pose = self.navigation.getRobotPositionInMap()
+                else:
+                    error_pose = self.motion.getRobotPosition(False)
+                
+                result.final_x = error_pose[0]
+                result.final_y = error_pose[1]
+                result.distance_to_target = math.sqrt((target_x - error_pose[0])**2 + 
+                                                    (target_y - error_pose[1])**2)
+            except:
+                result.final_x = 0.0
+                result.final_y = 0.0
+                result.distance_to_target = 0.0
+            
+            return result
+
 
 
 def main(args=None):

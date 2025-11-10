@@ -7,10 +7,10 @@ import os
 import paramiko
 from rclpy.node import Node
 from std_msgs.msg import Bool, String
-from qi_unipa_2_interfaces.msg import Track
+from qi_unipa_2_interfaces.msg import Tracker
 from qi_unipa_2_interfaces.srv import SetPosture
-from qi_unipa_2_interfaces.action import Talking
-
+from qi_unipa_2_interfaces.action import Talking, Browsing
+from rclpy.action import ActionClient
 import json
 from qi_unipa_2.utils import Utils
 from rclpy.action import ActionServer
@@ -95,6 +95,8 @@ class QiUnipa2_speech(Node):
 
         # Action
         self._action_server_talking = ActionServer(self, Talking, '~/talking', self.talking)
+        self.browsing_client = ActionClient(self, Browsing, 'browsing')
+
 
         # Topic subscription
         self.record_sub = self.create_subscription(Bool, "~/record", self.record_callback, qos_reliable_10)
@@ -103,7 +105,7 @@ class QiUnipa2_speech(Node):
         self.start_bdi_sub = self.create_subscription(Bool, "~/start_bdi", self.start_bdi_callback, qos_reliable_10)
         
         # Topic publisher
-        self.tracking_pub = self.create_publisher(Track, "~/track",  qos_reliable_10)
+        self.tracking_pub = self.create_publisher(Tracker, "~/tracker",  qos_reliable_10)
         self.isTalking_pub = self.create_publisher(Bool, '~/is_speaking',  qos_reliable_10)
         self.isTalking_bdi_pub = self.create_publisher(Bool, '~/is_speaking_bdi', qos_reliable_10)
         self.start_pub = self.create_publisher(Bool, '~/start_conv', qos_reliable_10)
@@ -138,21 +140,38 @@ class QiUnipa2_speech(Node):
         self.set_posture_client.call_async(request)
         self.get_logger().debug(f"Chiamata set_posture: {posture_name} @ speed {speed}")
 
+    
+    def send_browsing(self, html_page: str, use_tablet: bool = False):
+        if not self.browsing_client.wait_for_server(timeout_sec=1.0):
+            self.get_logger().warn("Action server /browsing non disponibile")
+            return
+        
+        goal_msg = Browsing.Goal()
+        goal_msg.html_page = html_page
+        goal_msg.use_tablet = use_tablet
+        
+        self.get_logger().info(f"Invio action Browsing: page='{html_page}', use_tablet={use_tablet}")
+        send_goal_future = self.browsing_client.send_goal_async(goal_msg)
+        send_goal_future.add_done_callback(self.browsing_goal_response_callback)
+    
+    def browsing_goal_response_callback(self, future):
+        goal_handle = future.result()
+        if not goal_handle.accepted:
+            self.get_logger().warn("Action Browsing rifiutata")
+            return
+        self.get_logger().info("Action Browsing accettata")
 
-
+    # modificata ending_callback che prima usava show_pub
     def ending_callback(self, msg):
-        msg2 = String()
-        self.pub_track("Stop", 0.3)
-        self.call_set_posture_sync("Stand", 0.5) #Permette chiamata sincrona ad una funzione async
-        msg2.data = "disattivo.html"
+        self.pub_tracker("Stop", 0.3)
+        self.call_set_posture_sync("Stand", 0.5)
         self.tablet_on = True
         self.start = False
         self.set_led(False)
-        self.show_pub.publish(msg2)
+        # Invio action Browsing invece di show topic
+        self.send_browsing("disattivo.html", use_tablet=False)
 
-    def start_bdi_callback(self, msg):
-        self.start_bdi = msg.data
-
+    # modifica di onTouched che prima usava show_pub
     def onTouched(self, value):
         self.get_logger().info(f"Tocco: {value}")
         if not self.start:
@@ -168,30 +187,30 @@ class QiUnipa2_speech(Node):
         else:
             self.start = False
             self.set_led(False)
-            self.call_set_posture_sync("Stand", 0.5) #Permette chiamata sincrona ad una funzione async
+            self.call_set_posture_sync("Stand", 0.5)
             self.get_logger().info("Ending")
 
-        msg2 = String()
         if self.tablet_on:
-            self.pub_track("Face", 0.8)
-            msg2.data = "attivo.html"
+            self.pub_tracker("Face", 0.8)
+            self.send_browsing("attivo.html", use_tablet=False)
             self.tablet_on = False
+
             msg3 = Bool()
             msg3.data = True
             self.touched.publish(msg3)
         else:
-            self.pub_track("Stop", 0.3)
-            msg2.data = "disattivo.html"
-            self.tablet_on = True    
+            self.pub_tracker("Stop", 0.3)
+            self.send_browsing("disattivo.html", use_tablet=False)
+            self.tablet_on = True
+
             msg3 = Bool()
             msg3.data = False
             self.touched.publish(msg3)
-        self.show_pub.publish(msg2)
 
 
 
-    def pub_track(self, name, distance):
-        msg = Track()
+    def pub_tracker(self, name, distance):
+        msg = Tracker()
         msg.target_name = name
         msg.distance = distance
         self.tracking_pub.publish(msg)
@@ -202,6 +221,7 @@ class QiUnipa2_speech(Node):
             return True
         except (json.JSONDecodeError, TypeError):
             return False
+
 
     def talking(self, goal_handle):
         message = goal_handle.request.message
@@ -248,7 +268,6 @@ class QiUnipa2_speech(Node):
     def check_speaking(self):
         if self.memory is None:
             return
-        
         try:
             msg = Bool()
             status = self.memory.getData("ALTextToSpeech/Status")
@@ -372,6 +391,10 @@ class QiUnipa2_speech(Node):
             self.get_logger().error(f"Errore record_callback: {e}")
         finally:
             self.is_recording = False
+
+    
+    def start_bdi_callback(self, msg):
+        self.start_bdi = msg.data
 
     def record_callback_no_mic(self, msg):
         res_bdi = String()

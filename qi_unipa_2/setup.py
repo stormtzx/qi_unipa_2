@@ -29,7 +29,8 @@ setup(
             'qi_unipa_2_tablet = qi_unipa_2.qi_unipa_2_tablet:main',
             'qi_unipa_2_server = qi_unipa_2.qi_unipa_2_server:main',
             'qi_unipa_2_vision = qi_unipa_2.qi_unipa_2_vision:main',
-            'qi_unipa_2_stt = qi_unipa_2.qi_unipa_2_stt:main',
+            'qi_unipa_2_audio = qi_unipa_2.qi_unipa_2_audio:main',
+            'qi_unipa_2_reference = qi_unipa_2.qi_unipa_2_reference:main',
         ],
     },
 )
