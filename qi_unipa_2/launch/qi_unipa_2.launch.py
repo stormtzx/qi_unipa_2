@@ -98,17 +98,7 @@ def generate_launch_description():
         }]
     )
     
-    qi_unipa_2_tablet_node = Node(
-       package='qi_unipa_2',
-       executable='qi_unipa_2_tablet',  
-       name='qi_unipa_2_tablet',
-       output='screen',
-       parameters=[{
-           'mock_mode': LaunchConfiguration('mock_mode'),
-           'ip': LaunchConfiguration('ip'),
-           'port': LaunchConfiguration('port')
-       }]
-    )
+    
     
     qi_unipa_2_server_node = Node(
         package='qi_unipa_2',
@@ -116,6 +106,7 @@ def generate_launch_description():
         name='qi_unipa_2_server',
         output='screen',
         parameters=[{
+            'mock_mode': LaunchConfiguration('mock_mode'),
             'ip': LaunchConfiguration('ip'),
             'port': LaunchConfiguration('port')
         }]
@@ -142,7 +133,6 @@ def generate_launch_description():
         qi_unipa_2_speech_node,
         qi_unipa_2_audio_node,
         qi_unipa_2_tracking_node,
-        qi_unipa_2_tablet_node,
         qi_unipa_2_server_node,
         qi_unipa_2_reference_node,
         qi_unipa_2_vision_node

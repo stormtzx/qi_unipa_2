@@ -4,6 +4,12 @@ import sys
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 import os
 import json
+from ament_index_python.packages import get_package_share_directory
+import logging
+import socket
+
+
+logger = logging.getLogger(__name__)  # ← con "__name__" usa il nome del modulo (quindi "utils")
 
 
 class Utils:
@@ -99,3 +105,36 @@ class Utils:
         finally:
             if 'files' in locals() and 'file' in files:
                 files['file'][1].close()
+     
+    @staticmethod
+    def get_html_pages_dir(): #Metodo statico, il self non serve
+        """
+        Ottiene path portabile alla cartella html_pages.
+        Usa ament_index per portabilità su diversi sistemi.
+        """
+        try:
+            package_dir = get_package_share_directory('qi_unipa_2')
+            return os.path.join(package_dir, 'html_pages')
+        except Exception as e:
+            logger.warning(f"Impossibile usare ament_index: {e}")
+            # Fallback per sviluppo
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            return os.path.join(current_dir, '..', 'html_pages')
+
+    
+    @staticmethod
+    def get_local_ip(): #Metodo statico, il self non serve
+        """
+        Ottiene IP locale della macchina.
+        
+        Returns:
+            str: Indirizzo IP locale (es: "192.168.1.100")
+        """
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            local_ip = s.getsockname()[0]
+            s.close()
+            return local_ip
+        except Exception:
+            return "127.0.0.1"
