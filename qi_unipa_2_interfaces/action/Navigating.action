@@ -1,0 +1,20 @@
+# Goal: Coordinate target in metri (frame world/odometria)
+float32 target_x
+float32 target_y
+bool use_map              # Default: False
+string map_name           # Default: "default" (opzionale)
+
+---
+# Result: Esito navigazione
+bool success               # True se target raggiunto
+string status              # "reached", "blocked", "timeout", "cancelled"
+float32 final_x            # Posizione finale effettiva
+float32 final_y
+float32 distance_to_target # Distanza residua dal target (metri)
+
+---
+# Feedback: Stato durante navigazione
+float32 current_x          # Posizione corrente
+float32 current_y
+float32 distance_remaining # Distanza residua al target
+string status              # "planning", "moving", "replanning", "stuck"

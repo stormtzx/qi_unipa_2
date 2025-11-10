@@ -1,0 +1,8 @@
+# Navigazione verso ultima posizione suono rilevata
+
+float32 approach_distance    # Distanza di fermata dal suono (metri, default: 0.5)
+---
+bool success
+string message
+float32 target_x             # Coordinata x target navigazione
+float32 target_y             # Coordinata y target navigazione

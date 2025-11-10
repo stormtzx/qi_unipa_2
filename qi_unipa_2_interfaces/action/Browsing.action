@@ -1,0 +1,11 @@
+# Goal
+string html_page #La pagina richiesta
+bool use_tablet  # true per Pepper tablet, false per browser mock locale
+---
+# Result
+bool success
+---
+# Feedback
+string current_status
+string tablet_ip
+string webserver_ip
