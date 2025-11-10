@@ -54,13 +54,13 @@ class QiUnipa2_sensor(Node):
                 self.memory = None
 
         # Inizializzazione publishers
-        self.bumper_pub = self.create_publisher(Bumper, "/bumper", qos_best_effort_10)
-        self.head_touch_pub = self.create_publisher(HeadTouch, "/head_touch", qos_best_effort_10)
-        self.speak_pub = self.create_publisher(String, "/speak", qos_best_effort_10)
-        self.battery_pub = self.create_publisher(Battery, "/battery", qos_best_effort_10)
+        self.bumper_pub = self.create_publisher(Bumper, "/pepper/topics/bumper", qos_best_effort_10)
+        self.head_touch_pub = self.create_publisher(HeadTouch, "/pepper/topics/head_touch", qos_best_effort_10)
+        self.speak_pub = self.create_publisher(String, "/pepper/topics/speak", qos_best_effort_10)
+        self.battery_pub = self.create_publisher(Battery, "/pepper/topics/battery", qos_best_effort_10)
 
         # Action Client per Talking
-        self.talking_client = ActionClient(self, Talking, '/qi_unipa_2_speech/talking')
+        self.talking_client = ActionClient(self, Talking, '/pepper/actions/talking')
         
         self.bumper_pressed = False
 

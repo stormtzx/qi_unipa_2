@@ -5,9 +5,9 @@ from rclpy.node import Node
 import sys
 from std_msgs.msg import Int32
 from geometry_msgs.msg import Vector3
-from qi_unipa_2.utils import Utils
-from qi_unipa_2_interfaces.srv import SetState, SetPosture, SetJointAngles, SetHand
-from qi_unipa_2_interfaces.action import Walking, Navigating
+from qi_unipa_2.utils import Utils #type: ignore
+from qi_unipa_2_interfaces.srv import SetState, SetPosture, SetJointAngles, SetHand #type: ignore
+from qi_unipa_2_interfaces.action import Walking, Navigating #type: ignore
 import math
 
 
@@ -60,15 +60,15 @@ class QiUnipa2_movement(Node):
 
 
         # Dichiarazione service
-        self.create_service(SetState, '~/set_state', self.set_state, qos_profile=qos_reliable_10)
-        self.create_service(SetJointAngles, '~/set_joint_angles', self.set_joint_angles, qos_profile=qos_reliable_10)
-        self.create_service(SetPosture, '~/set_posture', self.set_posture, qos_profile=qos_reliable_10)
-        self.create_service(SetHand, '~/set_hand', self.set_hand, qos_profile=qos_reliable_10)
+        self.create_service(SetState, '/pepper/services/set_state', self.set_state, qos_profile=qos_reliable_10)
+        self.create_service(SetJointAngles, '/pepper/services/set_joint_angles', self.set_joint_angles, qos_profile=qos_reliable_10)
+        self.create_service(SetPosture, '/pepper/services/set_posture', self.set_posture, qos_profile=qos_reliable_10)
+        self.create_service(SetHand, '/pepper/services/set_hand', self.set_hand, qos_profile=qos_reliable_10)
         
         # Dichiarazione action
-        self._action_server_walking = ActionServer(self, Walking, '~/walking', self.walking)
+        self._action_server_walking = ActionServer(self, Walking, '/pepper/actions/walking', self.walking)
           # ActionServer Navigating (NAVIGAZIONE AUTONOMA CON OBSTACLE AVOIDANCE)
-        self.navigating_server = ActionServer(self,Navigating,'navigating',self.navigating)
+        self.navigating_server = ActionServer(self,Navigating,'/pepper/actions/navigating',self.navigating)
 
 
 
@@ -355,7 +355,7 @@ class QiUnipa2_movement(Node):
             
             return result
 
-            
+
             
         except Exception as e:
             self.get_logger().error(f"Errore: {e}")

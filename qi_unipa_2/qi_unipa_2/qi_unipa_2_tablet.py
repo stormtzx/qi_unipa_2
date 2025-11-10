@@ -52,7 +52,7 @@ class QiUnipa2_tablet(Node):
             self.setup_browser()
 
         # Action server Browsing
-        self._action_server = ActionServer(self, Browsing, 'browsing', execute_callback=self.browsing_execute_callback)
+        self._action_server = ActionServer(self, Browsing, '/pepper/actions/browsing', execute_callback=self.browsing_execute_callback)
 
     def setup_browser(self):
         options = Options()

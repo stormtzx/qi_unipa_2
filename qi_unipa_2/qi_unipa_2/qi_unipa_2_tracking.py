@@ -62,44 +62,28 @@ class QiUnipa2_tracking(Node):
                 self.motion = None
 
         # Publisher per coordinate oggetto tracciato (opzionale, continuo)
-        self.tracked_coords_pub = self.create_publisher(
-            PointStamped,
-            '~/tracked_coordinates',
-            10
-        )
+        self.tracked_coords_pub = self.create_publisher(PointStamped,'/pepper/topics/tracked_coordinates',10)
+        
 
         # Timer per pubblicazione continua coordinate (10 Hz)
         self.create_timer(0.1, self.publish_tracked_coordinates)
 
         # Subscription topic tracker
-        self.tracking_sub = self.create_subscription(
-            Tracker,
-            "~/tracker", 
-            self.start_tracking,
-            qos_profile=qos_best_effort_10
-        )
+        self.tracking_sub = self.create_subscription(Tracker,"/pepper/topics/tracker",self.start_tracking,qos_best_effort_10)
         
         # Action Client per Navigating
-        self.navigating_client = ActionClient(
-            self, 
-            Navigating, 
-            '/qi_unipa_2_movement/navigating'
-        )
+        self.navigating_client = ActionClient(self,Navigating,'/pepper/actions/navigating')
         
         # Service client SetPosture
-        self.set_posture_client = self.create_client(SetPosture, '~/set_posture')
+        self.set_posture_client = self.create_client(SetPosture, '/pepper/services/set_posture')
         
         # Service GetTrackedObjCoordinates (query on-demand)
-        self.get_coords_service = self.create_service(
-            GetTrackedObjCoordinates,
-            '~/get_tracked_object_coordinates',
+        self.get_coords_service = self.create_service(GetTrackedObjCoordinates,'/pepper/services/get_tracked_object_coordinates',
             self.get_tracked_object_coordinates
         )
         
         # Service MoveToTrackedObject (navigazione verso oggetto tracciato)
-        self.move_to_tracked_service = self.create_service(
-            MoveToTrackedObj,
-            '~/move_to_tracked_object',
+        self.move_to_tracked_service = self.create_service(MoveToTrackedObj,'/pepper/services/move_to_tracked_object',
             self.move_to_tracked_obj_callback
         )
 

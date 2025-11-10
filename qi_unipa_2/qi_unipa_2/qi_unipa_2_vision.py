@@ -67,16 +67,16 @@ class QiUnipa2_vision(Node):
                 self.memory = None
 
         # Services
-        self.get_coords_service = self.create_service(GetCoordinates,'/get_coordinates',self.get_coordinates)
+        self.get_coords_service = self.create_service(GetCoordinates,'/pepper/services/get_coordinates',self.get_coordinates)
             
         # Publisher per le immagini
-        self.camera_pub = self.create_publisher(Image, '/camera_call', 10)
-        self.emotion_pub = self.create_publisher(Emotion, '/emotion', 10)  # Riconoscimento emozioni
+        self.camera_pub = self.create_publisher(Image, '/pepper/topics/camera_call', 10)
+        self.emotion_pub = self.create_publisher(Emotion, '/pepper/topics/emotion', 10)  # Riconoscimento emozioni
         
         # Topic: /get_video (UGUALE al vecchio /get_camera - cattura singola)
-        self.camera_sub = self.create_subscription(Bool, "/get_video", self.get_video, 10)
+        self.camera_sub = self.create_subscription(Bool, "/pepper/topics/get_video", self.get_video, 10)
         
-        self.image_service = self.create_service(GetImage, '/get_image', self.get_image)
+        self.image_service = self.create_service(GetImage, '/pepper/services/get_image', self.get_image)
         
         self.get_logger().info("Nodo vision avviato")
         

@@ -2,9 +2,9 @@ import qi
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
-from qi_unipa_2_interfaces.msg import Sonar, IMU, Infrared
-from qi_unipa_2_interfaces.srv import GetPosition
-from qi_unipa_2.utils import Utils
+from qi_unipa_2_interfaces.msg import Sonar, IMU, Infrared #type: ignore
+from qi_unipa_2_interfaces.srv import GetPosition #type: ignore
+from qi_unipa_2.utils import Utils #type: ignore
 
 
 class QiUnipa2_reference(Node):    
@@ -82,17 +82,12 @@ class QiUnipa2_reference(Node):
                 self.mock_position = {'x': 0.0, 'y': 0.0, 'theta': 0.0}
 
         # Inizializzazione publishers
-        self.sonar_pub = self.create_publisher(Sonar, "/sonar", qos_best_effort_10)  # ✅ CORRETTO
-        self.imu_pub = self.create_publisher(IMU, "/imu", qos_best_effort_10)
-        self.infrared_pub = self.create_publisher(Infrared, "/infrared", qos_best_effort_10)
+        self.sonar_pub = self.create_publisher(Sonar, "/pepper/topics/sonar", qos_best_effort_10)
+        self.imu_pub = self.create_publisher(IMU, "/pepper/topics/imu", qos_best_effort_10)
+        self.infrared_pub = self.create_publisher(Infrared, "/pepper/topics/infrared", qos_best_effort_10)
         
         # Service GetPosition
-        self.get_position_srv = self.create_service(
-            GetPosition,
-            '~/get_position',
-            self.get_position_callback,
-            qos_profile=qos_reliable_10
-        )
+        self.get_position_srv = self.create_service(GetPosition,'/pepper/services/get_position',self.get_position_callback,qos_profile=qos_reliable_10)
 
         # Timers per sensori continui
         self.timer_imu = self.create_timer(0.1, self.imu_callback)           # 10Hz

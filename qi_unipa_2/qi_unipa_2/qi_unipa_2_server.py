@@ -15,7 +15,7 @@ import logging
 from socketserver import ThreadingMixIn
 
 PORT = 8080
-ROOT_DIR = "/home/roboticslab/Scrivania/Robot_Architecture/MHARA_Unipa/src/qi_unipa/html_pages"
+ROOT_DIR = "/home/daniele/Scrivania/ros2_ws/src/qi_unipa_2/html_pages"
 
 # Queue con dimensione aumentata e timeout configurabile
 request_queue_user = queue.Queue(maxsize=200)
@@ -339,24 +339,24 @@ class QiUnipa2_server(Node):
 
     def _create_publishers(self):
         """Crea tutti i publisher ROS"""
-        self.user_pub = self.create_publisher(String, '/user_update', 10)
-        self.orologio_pub = self.create_publisher(String, '/orologio_input', 10)
-        self.fine_visualizzazione_3_parole = self.create_publisher(Bool, '/fine_visualizzazione_3_parole', 10)
-        self.parole_selezionate = self.create_publisher(String, '/parole_selezionate', 10)
-        self.scelta_pub = self.create_publisher(String, '/risposta_si_no', 10)
-        self.get_data = self.create_publisher(String, '/get_data', 10)
+        self.user_pub = self.create_publisher(String, '/pepper/topics/user_update', 10)
+        self.orologio_pub = self.create_publisher(String, '/pepper/topics/orologio_input', 10)
+        self.fine_visualizzazione_3_parole = self.create_publisher(Bool, '/pepper/topics/fine_visualizzazione_3_parole', 10)
+        self.parole_selezionate = self.create_publisher(String, '/pepper/topics/parole_selezionate', 10)
+        self.scelta_pub = self.create_publisher(String, '/pepper/topics/risposta_si_no', 10)
+        self.get_data = self.create_publisher(String, '/pepper/topics/get_data', 10)
         
-        self.risultato_test1 = self.create_publisher(String, '/risultato_test1', 10)
-        self.risultato_test2 = self.create_publisher(String, '/risultato_test2', 10)
-        self.risultato_test3 = self.create_publisher(String, '/risultato_test3', 10)
-        self.risultato_test4 = self.create_publisher(String, '/risultato_test4', 10)
-        self.risultato_test5 = self.create_publisher(String, '/risultato_test5', 10)
+        self.risultato_test1 = self.create_publisher(String, '/pepper/topics/risultato_test1', 10)
+        self.risultato_test2 = self.create_publisher(String, '/pepper/topics/risultato_test2', 10)
+        self.risultato_test3 = self.create_publisher(String, '/pepper/topics/risultato_test3', 10)
+        self.risultato_test4 = self.create_publisher(String, '/pepper/topics/risultato_test4', 10)
+        self.risultato_test5 = self.create_publisher(String, '/pepper/topics/risultato_test5', 10)
         
-        self.must_test1 = self.create_publisher(String, '/must_test1', 10)
-        self.must_test2 = self.create_publisher(String, '/must_test2', 10)
-        self.must_test3 = self.create_publisher(String, '/must_test3', 10)
+        self.must_test1 = self.create_publisher(String, '/pepper/topics/must_test1', 10)
+        self.must_test2 = self.create_publisher(String, '/pepper/topics/must_test2', 10)
+        self.must_test3 = self.create_publisher(String, '/pepper/topics/must_test3', 10)
 
-        self.server_url_pub = self.create_publisher(String, '/ip', 10)
+        self.server_url_pub = self.create_publisher(String, '/pepper/topics/ip', 10)
 
     def log_stats(self):
         """Log delle statistiche periodiche"""

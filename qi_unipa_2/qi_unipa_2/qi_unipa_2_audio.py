@@ -51,28 +51,24 @@ class QiUnipa2_audio(Node):
                 self.local_whisper = None
         
         # Action Client per Browsing
-        self.browsing_client = ActionClient(self, Browsing, '/browsing')
+        self.browsing_client = ActionClient(self, Browsing, '/pepper/actions/browsing')
         
         # Action Client per Navigating
-        self.navigating_client = ActionClient(self, Navigating, '/navigating')
+        self.navigating_client = ActionClient(self, Navigating, '/pepper/actions/navigating')
         
         # Publisher per posizione suono
-        self.sound_location_pub = self.create_publisher(
-            PointStamped, 
-            '/audio/sound_location', 
-            10
-        )
+        self.sound_location_pub = self.create_publisher(PointStamped,'/pepper/topics/sound_location',10)
         
         # Service per navigazione verso suono
-        self.move_to_sound_service = self.create_service(MoveToSound,'/move_to_sound',self.move_to_sound_callback)
+        self.move_to_sound_service = self.create_service(MoveToSound,'/pepper/services/move_to_sound',self.move_to_sound_callback)
         
         # Variabile per memorizzazione ultima posizione suono rilevata
         self.last_sound_location = None
         
         # Subscriptions per STT
-        self.stt_sub = self.create_subscription(String, "/stt", self.stt_callback, qos_reliable_10)
-        self.stt_bdi_sub = self.create_subscription(String, "/stt_bdi", self.stt_bdi_callback, qos_reliable_10)
-        self.risposta_sub = self.create_subscription(String, "/risposta_si_no", self.condividi_risposta, qos_reliable_10)
+        self.stt_sub = self.create_subscription(String, "/pepper/topics/stt", self.stt_callback, qos_reliable_10)
+        self.stt_bdi_sub = self.create_subscription(String, "/pepper/topics/stt_bdi", self.stt_bdi_callback, qos_reliable_10)
+        self.risposta_sub = self.create_subscription(String, "/pepper/topics/risposta_si_no", self.condividi_risposta, qos_reliable_10)
         
         # Connessione a Pepper per audio localization
         if mock_mode:
