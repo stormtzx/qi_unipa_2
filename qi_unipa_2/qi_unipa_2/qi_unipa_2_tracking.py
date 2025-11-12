@@ -268,7 +268,6 @@ class QiUnipa2_tracking(Node):
         
         return response
 
-
     def move_to_tracked_obj_callback(self, request, response):
         """Service callback per navigazione verso oggetto tracciato"""
         # LEttura distanza di avvicinamento (ossia quanto si deve fermare vicino all'oggetto (default 0.5 m)

@@ -16,9 +16,11 @@ from qi_unipa_2.utils import Utils
 from rclpy.action import ActionServer
 
 
+
 class QiUnipa2_speech(Node):  
     def __init__(self):
         super().__init__('qi_unipa_2_speech')
+
 
         # Dichiarazione parametri con valori di default
         self.declare_parameter('mock_mode', False)
@@ -37,6 +39,7 @@ class QiUnipa2_speech(Node):
         # Salva ip come attributo
         self.ip = ip
 
+
         # Connessione condizionale
         if mock_mode:
             self.get_logger().warn("MOCK MODE ATTIVO - Nessuna connessione a Pepper")
@@ -47,9 +50,6 @@ class QiUnipa2_speech(Node):
             self.sound_detect_service = None
             self.configuration = None
             self.leds_service = None
-            self.tg = None
-            self.s1 = None
-            self.last_index = 0
             self.is_recognizing = False
         else:
             try:
@@ -67,11 +67,8 @@ class QiUnipa2_speech(Node):
                 self.sound_detect_service.setParameter("Sensitivity", 0.8)
                 self.configuration = {"bodyLanguageMode": "contextual"}
                 self.leds_service = self.session.service("ALLeds")
-                self.tg = self.session.service('ALTactileGesture')
-                self.s1 = self.tg.onGesture.connect(self.onTouched)
                 
                 # Variabili
-                self.last_index = self.memory.getData("ALTextToSpeech/Status")[0]
                 self.is_recognizing = False
                         
                 self.get_logger().info("Connesso a Pepper!")
@@ -85,34 +82,28 @@ class QiUnipa2_speech(Node):
                 self.sound_detect_service = None
                 self.configuration = None
                 self.leds_service = None
-                self.tg = None
-                self.s1 = None
-                self.last_index = 0
                 self.is_recognizing = False
+
 
         # Service
         self.set_posture_client = self.create_client(SetPosture, '/pepper/services/set_posture')
 
+
         # Action
         self._action_server_talking = ActionServer(self, Talking, '/pepper/actions/talking', self.talking)
-        self.browsing_client = ActionClient(self, Browsing, '/pepper/actions/browsing')
+
 
         # Topic publisher
         self.tracking_pub = self.create_publisher(Tracker, "/pepper/topics/tracker",  qos_reliable_10)
-        self.isTalking_pub = self.create_publisher(Bool, '/pepper/topics/is_speaking',  qos_reliable_10)
+        self.isTalking_pub = self.create_publisher(Bool, '/pepper/topics/is_talking',  qos_reliable_10)
 
-        self.agente = "agente"      
-        self.percept = "percept"
-        self.start = False
-        self.first = False
-        self.tablet_on = True
-        self.start_bdi = False
-        self.create_timer(0.5, self.check_speaking)
+
         self.set_led(False)
 
 
-
-    def call_set_posture_sync(self, posture_name, speed):#Permette chiamata sincrona ad una funzione async
+    
+    # Sistema la postura prima di parlare
+    def call_set_posture_sync(self, posture_name, speed):
         """
         Wrapper sincrono per chiamare set_posture senza await.
         Fire-and-forget: non aspetta la risposta.
@@ -127,87 +118,15 @@ class QiUnipa2_speech(Node):
         self.set_posture_client.call_async(request)
         self.get_logger().debug(f"Chiamata set_posture: {posture_name} @ speed {speed}")
 
-    
-    def send_browsing(self, html_page: str, use_tablet: bool = False):
-        if not self.browsing_client.wait_for_server(timeout_sec=1.0):
-            self.get_logger().warn("Action server /browsing non disponibile")
-            return
-        
-        goal_msg = Browsing.Goal()
-        goal_msg.html_page = html_page
-        goal_msg.use_tablet = use_tablet
-        
-        self.get_logger().info(f"Invio action Browsing: page='{html_page}', use_tablet={use_tablet}")
-        send_goal_future = self.browsing_client.send_goal_async(goal_msg)
-        send_goal_future.add_done_callback(self.browsing_goal_response_callback)
-    
-    def browsing_goal_response_callback(self, future):
-        goal_handle = future.result()
-        if not goal_handle.accepted:
-            self.get_logger().warn("Action Browsing rifiutata")
-            return
-        self.get_logger().info("Action Browsing accettata")
-
-    # modificata ending_callback che prima usava show_pub
-    def ending_callback(self, msg):
-        self.pub_tracker("Stop", 0.3)
-        self.call_set_posture_sync("Stand", 0.5)
-        self.tablet_on = True
-        self.start = False
-        self.set_led(False)
-        # Invio action Browsing invece di show topic
-        self.send_browsing("disattivo.html", use_tablet=False)
-
-    # modifica di onTouched che prima usava show_pub
-    def onTouched(self, value):
-        self.get_logger().info(f"Tocco: {value}")
-        if not self.start:
-            self.start = True
-            msg = Bool()
-            if self.first:
-                msg.data = True
-            else:
-                msg.data = False
-                self.first = True
-            self.start_pub.publish(msg)
-            self.get_logger().info("Start")
-        else:
-            self.start = False
-            self.set_led(False)
-            self.call_set_posture_sync("Stand", 0.5)
-            self.get_logger().info("Ending")
-
-        if self.tablet_on:
-            self.pub_tracker("Face", 0.8)
-            self.send_browsing("attivo.html", use_tablet=False)
-            self.tablet_on = False
-
-            msg3 = Bool()
-            msg3.data = True
-            self.touched.publish(msg3)
-        else:
-            self.pub_tracker("Stop", 0.3)
-            self.send_browsing("disattivo.html", use_tablet=False)
-            self.tablet_on = True
-
-            msg3 = Bool()
-            msg3.data = False
-            self.touched.publish(msg3)
 
 
-
+    # Tracking durante il parlato
     def pub_tracker(self, name, distance):
         msg = Tracker()
         msg.target_name = name
         msg.distance = distance
         self.tracking_pub.publish(msg)
 
-    def is_valid_json(self, stringa):
-        try:
-            json.loads(stringa)
-            return True
-        except (json.JSONDecodeError, TypeError):
-            return False
 
 
     def talking(self, goal_handle):
@@ -221,7 +140,8 @@ class QiUnipa2_speech(Node):
         
         is_talking = Bool()
         is_talking.data = True
-        self.isTalking_pub.publish(is_talking)
+        self.isTalking_pub.publish(is_talking) #Il nodo audio rileverà inizio e fine parlato
+
 
         if self.animated_speech is None:
             self.get_logger().warn(f"[MOCK] Talking simulato: {message}")
@@ -236,6 +156,10 @@ class QiUnipa2_speech(Node):
             except Exception as e:
                 self.get_logger().error(f"Errore talking: {e}")
 
+
+        is_talking.data = False
+        self.isTalking_pub.publish(is_talking) #Il nodo audio rileverà inizio e fine parlato
+        
         goal_handle.succeed()
         is_talking_feedback.is_talking = False
         goal_handle.publish_feedback(is_talking_feedback)
@@ -243,154 +167,26 @@ class QiUnipa2_speech(Node):
         result = Talking.Result()
         result.talking_complete = True
         
-        is_talking.data = False
-        self.isTalking_pub.publish(is_talking)
-        self.isTalking_bdi_pub.publish(is_talking)
         self.get_logger().info("Pepper talking complete")
 
-        self.call_set_posture_sync("Stand", 0.5) #Permette chiamata sincrona ad una funzione async
+
+        self.call_set_posture_sync("Stand", 0.5)
         
         return result
-
-    def check_speaking(self):
-        if self.memory is None:
-            return
-        try:
-            msg = Bool()
-            status = self.memory.getData("ALTextToSpeech/Status")
-            if self.start:  
-                if status[1] == "done" and status[0] != self.last_index:
-                    msg.data = False
-                    self.isTalking_pub.publish(msg)
-                    self.get_logger().info("Pepper ha terminato")
-                else:
-                    msg.data = True
-                    self.isTalking_pub.publish(msg)
-                self.last_index = status[0]
-            elif self.start_bdi:
-                if status[1] == "done" and status[0] != self.last_index:
-                    msg.data = False
-                    self.isTalking_bdi_pub.publish(msg)
-                    self.get_logger().info("BDI--------------Pepper ha terminato")
-                else:
-                    msg.data = True
-                    self.isTalking_bdi_pub.publish(msg)
-                self.last_index = status[0]
-        except Exception as e:
-            self.get_logger().error(f"Errore check_speaking: {e}")
-
-
-    def record_callback(self, msg):
-        if self.audio_service is None or self.sound_detect_service is None or self.memory is None:
-            self.get_logger().warn("[MOCK] record_callback simulato")
-            res = String()
-            res.data = "/mock/path/recording.wav"
-            if self.start:
-                self.stt_pub.publish(res)
-            return
-
-        if getattr(self, "is_recording", False):
-            self.get_logger().warn("Registrazione già in corso, callback ignorato.")
-            return
-        
-        self.is_recording = True
-        
-        try:
-            try:
-                self.audio_service.stopMicrophonesRecording()
-                self.get_logger().info("Registrazione precedente interrotta.")
-            except Exception:
-                self.get_logger().warn("Nessuna registrazione attiva da fermare.")
-            
-            channels = [1, 1, 1, 1]
-            audio_format = "wav"
-            sample_rate = 16000
-            output_file_robot = "/home/nao/audio_record_unipa/recording.wav"
-            
-            self.sound_detect_service.subscribe("Audio Detection")
-            
-            max_retries = 10
-            retry_count = 0
-            sound_data = None
-            
-            while retry_count < max_retries:
-                try:
-                    sound_data = self.memory.getData("SoundDetected")
-                    if sound_data is not None and len(sound_data) > 0 and len(sound_data[0]) > 1:
-                        self.get_logger().info("Servizio SoundDetected inizializzato correttamente.")
-                        break
-                    else:
-                        self.get_logger().info(f"Attesa inizializzazione SoundDetected... tentativo {retry_count + 1}")
-                        time.sleep(0.5)
-                        retry_count += 1
-                except Exception as e:
-                    self.get_logger().warn(f"Errore durante l'accesso a SoundDetected: {e}")
-                    time.sleep(0.5)
-                    retry_count += 1
-            
-            if sound_data is None:
-                self.get_logger().error("Impossibile inizializzare il servizio SoundDetected. Annullamento registrazione.")
-                self.sound_detect_service.unsubscribe("Audio Detection")
-                self.is_recording = False
-                return
-            
-            self.audio_service.startMicrophonesRecording(output_file_robot, audio_format, sample_rate, channels)
-            self.get_logger().info("Avvio microfoni")
-            self.set_led(True)
-            time.sleep(0.3)
-
-            self.is_recognizing = False
-            while not self.is_recognizing:
-                time.sleep(0.3)
-                if self.memory.getData("SoundDetected")[0][1] == 1:
-                    self.get_logger().info("Avvio registrazione...")        
-                    self.is_recognizing = True
-                    
-            while self.is_recognizing:
-                time.sleep(4)
-                if self.memory.getData("SoundDetected")[0][1] == 0:
-                    self.is_recognizing = False
-                    self.audio_service.stopMicrophonesRecording()
-                    self.set_led(False)
-                    self.sound_detect_service.unsubscribe("Audio Detection")
-                    self.get_logger().info(f"Registrazione terminata e salvata in: {output_file_robot}")
-
-            path_ros_ws = os.path.join(os.path.abspath(__file__).split("/install")[0])
-            local_output_file = os.path.join(path_ros_ws, "src/audio/recording.wav")
-            
-            ssh = paramiko.SSHClient()
-            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            ssh.connect(self.ip, username='nao', password='nao')
-
-            sftp = ssh.open_sftp()
-            sftp.get(output_file_robot, local_output_file)
-            sftp.close()
-            ssh.close()
-            self.get_logger().info("File trasferito con successo!")
-            
-            res = String()
-            res.data = local_output_file
-            self.set_fade_led(True)
-            
-            if self.start:
-                self.stt_pub.publish(res)
-        except Exception as e:
-            self.get_logger().error(f"Errore record_callback: {e}")
-        finally:
-            self.is_recording = False
-
     
-    def start_bdi_callback(self, msg):
-        self.start_bdi = msg.data
 
-    def record_callback_no_mic(self, msg):
-        res_bdi = String()
-        messaggio_json = {
-            "agente": self.agente,
-            "percept": self.percept
-        }
-        res_bdi.data = json.dumps(messaggio_json)
-        self.stt_bdi_pub.publish(res_bdi)
+
+    # Valida la struttura del messaggio
+    def is_valid_json(self, stringa):
+        try:
+            json.loads(stringa)
+            return True
+        except (json.JSONDecodeError, TypeError):
+            return False
+
+
+
+
 
     def set_led(self, on):
         if self.leds_service is None:
@@ -416,6 +212,7 @@ class QiUnipa2_speech(Node):
                 "Face/Led/Green/Right/315Deg/Actuator/Value"
             ]
 
+
             self.leds_service.createGroup("eyes", names)
             
             if on == True:
@@ -426,6 +223,8 @@ class QiUnipa2_speech(Node):
                 self.leds_service.on("FaceLeds")
         except Exception as e:
             self.get_logger().error(f"Errore set_led: {e}")
+    
+
 
     def set_fade_led(self, on):
         if self.leds_service is None:
@@ -451,7 +250,9 @@ class QiUnipa2_speech(Node):
                 "Face/Led/Green/Right/315Deg/Actuator/Value"
             ]
 
+
             self.leds_service.createGroup("eyes", names)
+
 
             colors = [
                 (1.0, 0.0, 0.0),
@@ -463,7 +264,9 @@ class QiUnipa2_speech(Node):
                 (1.0, 1.0, 1.0)
             ]
 
+
             duration = 0.8
+
 
             if on == True:
                 self.leds_service.off("FaceLeds")
@@ -475,11 +278,13 @@ class QiUnipa2_speech(Node):
             self.get_logger().error(f"Errore set_fade_led: {e}")
 
 
+
 def main(args=None):
     rclpy.init(args=args)
     node = QiUnipa2_speech()
     rclpy.spin(node)
     rclpy.shutdown()
+
 
 
 if __name__ == "__main__":

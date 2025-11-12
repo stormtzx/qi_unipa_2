@@ -6,18 +6,22 @@ from std_msgs.msg import Bool, String
 from geometry_msgs.msg import PointStamped
 import json
 import math
+import time
+import os
+import paramiko
+import threading
 from qi_unipa_2.utils import Utils
 from qi_unipa_2_interfaces.action import Browsing, Navigating
 from qi_unipa_2_interfaces.srv import MoveToSound
 import random
 
 
-
 class QiUnipa2_audio(Node):
     def __init__(self):
         super().__init__("qi_unipa_2_audio")
+
         
-        # Dichiarazione parametri
+        # Parametri esistenti
         self.declare_parameter('mock_mode', False)
         self.declare_parameter('ip', '192.168.0.102')
         self.declare_parameter('port', 9559)
@@ -29,6 +33,7 @@ class QiUnipa2_audio(Node):
         utils = Utils(ip=ip, port=port, mock_mode=mock_mode)
         qos_reliable_10 = utils.get_QoS('reliable', 10)
         
+        self.ip = ip
         self.mock_mode = mock_mode
         self.local_whisper = None
         self.mock_transcriptions = [
@@ -57,23 +62,36 @@ class QiUnipa2_audio(Node):
         self.navigating_client = ActionClient(self, Navigating, '/pepper/actions/navigating')
         
         # Publisher per posizione suono
-        self.sound_location_pub = self.create_publisher(PointStamped,'/pepper/topics/sound_location',10)
+        self.sound_location_pub = self.create_publisher(PointStamped, '/pepper/topics/sound_location', 10)
+        
+        # Publisher per audio registrato (path file)
+        self.audio_recorded_pub = self.create_publisher(String, '/pepper/topics/audio_recorded', 10)
+        
+        # Publisher per trascrizione (testo per LLM)
+        self.transcription_pub = self.create_publisher(String, '/pepper/topics/transcription', 10)
         
         # Service per navigazione verso suono
-        self.move_to_sound_service = self.create_service(MoveToSound,'/pepper/services/move_to_sound',self.move_to_sound_callback)
+        self.move_to_sound_service = self.create_service(MoveToSound, '/pepper/services/move_to_sound', self.move_to_sound_callback)
         
         # Variabile per memorizzazione ultima posizione suono rilevata
         self.last_sound_location = None
         
         # Subscriptions per STT
-        self.risposta_sub = self.create_subscription(String, "/pepper/topics/risposta_si_no", self.condividi_risposta, qos_reliable_10)
+        #self.risposta_sub = self.create_subscription(String, "/pepper/topics/risposta_si_no", self.condividi_risposta, qos_reliable_10)
         
-        # Connessione a Pepper per audio localization
+        # Subscription per stato talking (auto-recording)
+        self.is_pepper_talking = False
+        self.is_recording = False
+        self.create_subscription(Bool, '/pepper/topics/is_talking', self.on_talking_changed, 10)
+        
+        # Connessione a Pepper per audio localization e recording
         if mock_mode:
             self.get_logger().warn("MOCK MODE ATTIVO - Nessuna connessione a Pepper")
             self.session = None
             self.memory = None
             self.audio_service = None
+            self.audio_recorder = None
+            self.sound_detect_service = None
             
             # Timer per pubblicazione suoni mock
             self.create_timer(3.0, self.publish_mock_sound)
@@ -83,9 +101,14 @@ class QiUnipa2_audio(Node):
                 self.session = utils.session
                 self.memory = self.session.service("ALMemory")
                 self.audio_service = self.session.service("ALAudioSourceLocalization")
+                self.audio_recorder = self.session.service("ALAudioRecorder")
+                self.sound_detect_service = self.session.service("ALSoundDetection")
                 
                 # Configurazione sensibilità audio localization
                 self.audio_service.setParameter("Sensitivity", 0.8)
+                
+                # Configurazione sensibilità sound detection per recording
+                self.sound_detect_service.setParameter("Sensitivity", 0.8)
                 
                 # Sottoscrizione evento suono localizzato
                 self.memory.subscribeToEvent(
@@ -102,11 +125,265 @@ class QiUnipa2_audio(Node):
                 self.session = None
                 self.memory = None
                 self.audio_service = None
+                self.audio_recorder = None
+                self.sound_detect_service = None
                 
                 # Timer per pubblicazione suoni mock
                 self.create_timer(3.0, self.publish_mock_sound)
         
         self.get_logger().info("Nodo audio avviato")
+
+
+    # ========================================
+    # AUTO-RECORDING (triggered da /is_talking)
+    # ========================================
+    
+    def on_talking_changed(self, msg):
+        """Callback per cambio stato talking di Pepper"""
+        was_talking = self.is_pepper_talking
+        self.is_pepper_talking = msg.data
+        
+        # Trigger: Pepper ha finito di parlare
+        if was_talking and not self.is_pepper_talking:
+            self.get_logger().info("Pepper ha finito di parlare, avvio registrazione automatica")
+            if not self.is_recording:
+                self.start_recording_async()
+
+
+    def start_recording_async(self):
+        """Avvia registrazione + trascrizione in thread separato (non-blocking)"""
+        def _recording_thread():
+            audio_path = self.record_audio()
+            
+            if audio_path:
+                # Pubblica path audio registrato
+                msg = String()
+                msg.data = audio_path
+                self.audio_recorded_pub.publish(msg)
+                self.get_logger().info(f"Audio registrato: {audio_path}")
+                
+                # Trascrivi audio
+                transcription = self.transcribe_audio(audio_path)
+                
+                if transcription:
+                    # Pubblica trascrizione per LLM
+                    transcription_msg = String()
+                    transcription_msg.data = transcription
+                    self.transcription_pub.publish(transcription_msg)
+                    self.get_logger().info(f"Trascrizione pubblicata: {transcription}")
+                else:
+                    self.get_logger().warn("Trascrizione fallita o vuota")
+            else:
+                self.get_logger().warn("Registrazione fallita (timeout o errore)")
+        
+        thread = threading.Thread(target=_recording_thread, daemon=True)
+        thread.start()
+
+
+    def record_audio(self):
+        """
+        Registra audio da microfoni Pepper usando AudioLocalization come trigger,
+        poi disattiva localization durante registrazione per evitare interferenza.
+        """
+        if self.audio_recorder is None or self.memory is None:
+            self.get_logger().warn("[MOCK] Registrazione simulata")
+            time.sleep(2)
+            return "/mock/path/recording.wav"
+        
+        if self.is_recording:
+            return ""
+        
+        self.is_recording = True
+        
+        try:
+            # Stop eventuali registrazioni precedenti
+            try:
+                self.audio_recorder.stopMicrophonesRecording()
+            except:
+                pass
+            
+            # Config registrazione
+            channels = [1, 1, 1, 1]
+            audio_format = "wav"
+            sample_rate = 16000
+            output_file_robot = "/home/nao/audio_record_unipa/recording.wav"
+            
+            # FASE 1: Attesa trigger da AudioLocalization (già attivo)
+            self.get_logger().info("Attesa suono localizzato (trigger)...")
+            
+            sound_triggered = False
+            trigger_timeout = 10
+            start_time = time.time()
+            
+            while (time.time() - start_time) < trigger_timeout and not sound_triggered:
+                time.sleep(0.2)
+                
+                # Controlla se c'è un suono localizzato recente con alta confidence
+                if self.last_sound_location is not None:
+                    time_since_sound = (self.get_clock().now() - self.last_sound_location["timestamp"]).nanoseconds / 1e9
+                    
+                    # Suono rilevato negli ultimi 0.3 secondi con confidence > 0.7
+                    if time_since_sound < 0.3 and self.last_sound_location['confidence'] > 0.7:
+                        sound_triggered = True
+                        self.get_logger().info(
+                            f"Trigger confermato da AudioLocalization: confidence={self.last_sound_location['confidence']:.2f}"
+                        )
+            
+            if not sound_triggered:
+                self.get_logger().warn("Timeout: nessun suono localizzato rilevato")
+                self.is_recording = False
+                return ""
+            
+            # FASE 2: Disattiva AudioLocalization per evitare interferenza durante registrazione
+            self.get_logger().debug("Disattivazione AudioLocalization durante registrazione")
+            try:
+                self.memory.unsubscribeToEvent(
+                    "ALAudioSourceLocalization/SoundLocated",
+                    self.get_name()
+                )
+            except Exception as e:
+                self.get_logger().warn(f"Errore disattivazione AudioLocalization: {e}")
+            
+            # FASE 3: Registrazione con SoundDetection
+            self.sound_detect_service.subscribe("Audio Detection")
+            
+            # Attesa inizializzazione sound detection
+            max_retries = 10
+            retry_count = 0
+            
+            while retry_count < max_retries:
+                try:
+                    sound_data = self.memory.getData("SoundDetected")
+                    if sound_data and len(sound_data) > 0 and len(sound_data[0]) > 1:
+                        break
+                except:
+                    pass
+                time.sleep(0.5)
+                retry_count += 1
+            
+            if retry_count >= max_retries:
+                self.get_logger().error("Timeout inizializzazione SoundDetected")
+                self.sound_detect_service.unsubscribe("Audio Detection")
+                self._enable_localization_async()
+                self.is_recording = False
+                return ""
+            
+            # Avvio registrazione microfoni
+            self.audio_recorder.startMicrophonesRecording(output_file_robot, audio_format, sample_rate, channels)
+            self.get_logger().info("Registrazione avviata")
+            
+            # Attesa silenzio (4s)
+            is_sound_detected = True
+            last_sound_time = time.time()
+            
+            while is_sound_detected:
+                time.sleep(0.5)
+                try:
+                    if self.memory.getData("SoundDetected")[0][1] == 1:
+                        last_sound_time = time.time()
+                    else:
+                        silence_duration = time.time() - last_sound_time
+                        if silence_duration > 4.0:
+                            is_sound_detected = False
+                            self.get_logger().info("Silenzio rilevato, stop registrazione")
+                except:
+                    pass
+            
+            # Stop registrazione
+            self.stop_recording()
+            
+            # FASE 4: Riattiva AudioLocalization in background
+            self._enable_localization_async()
+            
+            # Trasferimento file via SFTP
+            self.get_logger().info("Trasferimento file audio...")
+            path_ros_ws = os.path.join(os.path.abspath(__file__).split("/install")[0])
+            local_output_file = os.path.join(path_ros_ws, "src/audio/recording.wav")
+            
+            ssh = paramiko.SSHClient()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            ssh.connect(self.ip, username='nao', password='nao')
+            
+            sftp = ssh.open_sftp()
+            sftp.get(output_file_robot, local_output_file)
+            sftp.close()
+            ssh.close()
+            
+            self.get_logger().info(f"File trasferito: {local_output_file}")
+            
+            self.is_recording = False
+            return local_output_file
+            
+        except Exception as e:
+            self.get_logger().error(f"Errore registrazione: {e}")
+            self.stop_recording()
+            self._enable_localization_async()
+            return ""
+        
+
+    def _enable_localization_async(self):
+        """Riattiva AudioLocalization in thread separato con controllo safety"""
+        def _reactivate():
+            time.sleep(0.5)
+            
+            # Safety check: non riattivare se registrazione in corso
+            if self.is_recording:
+                self.get_logger().debug("Riattivazione AudioLocalization saltata (registrazione in corso)")
+                return
+            
+            if self.memory is not None:
+                try:
+                    self.memory.subscribeToEvent(
+                        "ALAudioSourceLocalization/SoundLocated",
+                        self.get_name(),
+                        self.on_sound_located
+                    )
+                    self.get_logger().debug("AudioLocalization riattivato")
+                except Exception as e:
+                    self.get_logger().warn(f"Errore riattivazione AudioLocalization: {e}")
+        
+        threading.Thread(target=_reactivate, daemon=True).start()
+
+
+
+    def transcribe_audio(self, audio_path: str) -> str:
+        """
+        Trascrivi file audio con Whisper.
+        
+        Args:
+            audio_path: Path locale file audio WAV
+        
+        Returns:
+            str: Testo trascritto o stringa vuota se errore
+        """
+        if self.local_whisper is None:
+            transcription = self.mock_transcriptions[self.mock_counter % len(self.mock_transcriptions)]
+            self.mock_counter += 1
+            self.get_logger().info(f"[MOCK] Trascrizione simulata: {transcription}")
+            return transcription
+        
+        try:
+            self.get_logger().info("Trascrizione con Whisper in corso...")
+            result = self.local_whisper.transcribe(audio_path, language="it")
+            transcription = result['text'].strip()
+            self.get_logger().info(f"Trascrizione completata: {transcription}")
+            return transcription
+        except Exception as e:
+            self.get_logger().error(f"Errore trascrizione Whisper: {e}")
+            return ""
+
+
+    def stop_recording(self):
+        """Stop registrazione e cleanup"""
+        try:
+            if self.audio_recorder:
+                self.audio_recorder.stopMicrophonesRecording()
+            if self.sound_detect_service:
+                self.sound_detect_service.unsubscribe("Audio Detection")
+        except:
+            pass
+        
+        self.is_recording = False
 
 
     # ========================================
@@ -117,16 +394,15 @@ class QiUnipa2_audio(Node):
         """Callback evento suono localizzato da ALAudioSourceLocalization"""
         try:
             sound_data = value[0]
-            azimuth = sound_data[0]      # Angolo orizzontale (radianti)
-            elevation = sound_data[1]    # Angolo verticale (radianti)
-            confidence = sound_data[2]   # Confidenza 0-1
+            azimuth = sound_data[0]
+            elevation = sound_data[1]
+            confidence = sound_data[2]
             
             self.get_logger().info(
                 f"Suono rilevato: azimuth={math.degrees(azimuth):.1f} gradi, "
                 f"elevation={math.degrees(elevation):.1f} gradi, confidence={confidence:.2f}"
             )
             
-            # Pubblicazione coordinate suono
             self.publish_sound_location(azimuth, elevation, confidence)
             
         except Exception as e:
@@ -136,15 +412,12 @@ class QiUnipa2_audio(Node):
     def publish_sound_location(self, azimuth, elevation, confidence):
         """Pubblicazione posizione suono su topic"""
         
-        # Stima distanza fissa (parametro configurabile)
         distance = 2.0
         
-        # Conversione angoli sferici in coordinate cartesiane (robot frame)
         x = distance * math.cos(elevation) * math.cos(azimuth)
         y = distance * math.cos(elevation) * math.sin(azimuth)
         z = distance * math.sin(elevation)
         
-        # Creazione messaggio
         msg = PointStamped()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.header.frame_id = "base_link"
@@ -152,10 +425,8 @@ class QiUnipa2_audio(Node):
         msg.point.y = y
         msg.point.z = z
         
-        # Pubblicazione topic
         self.sound_location_pub.publish(msg)
         
-        # Memorizzazione ultima posizione
         self.last_sound_location = {
             "x": x,
             "y": y,
@@ -183,32 +454,21 @@ class QiUnipa2_audio(Node):
         
         approach_distance = request.approach_distance if hasattr(request, 'approach_distance') else 0.5
         
-        # Verifica presenza suono rilevato
         if self.last_sound_location is None:
             response.success = False
             response.message = "Nessun suono rilevato"
             return response
         
-        # Verifica recency del suono (timeout 10 secondi)
-        time_since_sound = (self.get_clock().now() - self.last_sound_location["timestamp"]).nanoseconds / 1e9
-        if time_since_sound > 10.0:
-            response.success = False
-            response.message = f"Ultimo suono rilevato {time_since_sound:.1f}s fa (timeout superato)"
-            return response
-        
-        # Verifica confidence minima
         if self.last_sound_location["confidence"] < 0.5:
             response.success = False
             response.message = f"Confidence troppo bassa: {self.last_sound_location['confidence']:.2f}"
             return response
         
-        # Calcolo coordinate target con offset approach_distance
         target_x = self.last_sound_location["x"]
         target_y = self.last_sound_location["y"]
         
         distance = math.sqrt(target_x**2 + target_y**2)
         if distance > approach_distance:
-            # Riduzione distanza per fermata a approach_distance dal suono
             scale = (distance - approach_distance) / distance
             target_x *= scale
             target_y *= scale
@@ -219,13 +479,11 @@ class QiUnipa2_audio(Node):
         
         self.get_logger().info(f"Navigazione verso suono: target=({target_x:.2f}, {target_y:.2f})")
         
-        # Verifica disponibilità action server navigating
         if not self.navigating_client.wait_for_server(timeout_sec=2.0):
             response.success = False
             response.message = "Navigating action server non disponibile"
             return response
         
-        # Invio goal navigating
         goal = Navigating.Goal()
         goal.target_x = target_x
         goal.target_y = target_y
@@ -233,7 +491,6 @@ class QiUnipa2_audio(Node):
         
         future = self.navigating_client.send_goal_async(goal)
         
-        # Attesa accettazione goal
         rclpy.spin_until_future_complete(self, future, timeout_sec=2.0)
         
         if future.result() is not None:
@@ -249,99 +506,22 @@ class QiUnipa2_audio(Node):
 
 
     # ========================================
-    # SPEECH-TO-TEXT (STT)
+    # LEGACY CALLBACKS
     # ========================================
-
-    def send_browsing(self, html_page, use_tablet=False):
-        """Invio action Browsing per visualizzazione pagina HTML"""
-        if not self.browsing_client.wait_for_server(timeout_sec=1.0):
-            self.get_logger().warn("Action server browsing non disponibile")
-            return
-        
-        goal_msg = Browsing.Goal()
-        goal_msg.html_page = html_page
-        goal_msg.use_tablet = use_tablet
-        
-        self.get_logger().info(f"Invio action Browsing: page='{html_page}', use_tablet={use_tablet}")
-        send_goal_future = self.browsing_client.send_goal_async(goal_msg)
-        send_goal_future.add_done_callback(self.browsing_goal_response_callback)
-
-
-    def browsing_goal_response_callback(self, future):
-        """Callback risposta accettazione/rifiuto action Browsing"""
-        goal_handle = future.result()
-        if not goal_handle.accepted:
-            self.get_logger().warn("Action Browsing rifiutata")
-            return
-        
-        self.get_logger().info("Action Browsing accettata")
-        
-        # Attesa risultato finale
-        result_future = goal_handle.get_result_async()
-        result_future.add_done_callback(self.browsing_result_callback)
-
-
-    def browsing_result_callback(self, future):
-        """Callback risultato finale action Browsing"""
-        result = future.result().result
-        self.get_logger().info(f"Action Browsing completata: success={result.success}")
-
+    
 
     def stt_callback(self, msg):
-        """Callback per trascrizione audio standard"""
+        """
+        Callback legacy per trascrizione audio manuale.
+        Mantiene compatibilità con vecchio sistema basato su topic.
+        """
         audio_path = msg.data
-        self.get_logger().info(f"Path audio ricevuto: {audio_path}")
+        self.get_logger().info(f"Path audio ricevuto (legacy callback): {audio_path}")
         
-        if self.local_whisper is None:
-            transcription = self.mock_transcriptions[self.mock_counter % len(self.mock_transcriptions)]
-            self.mock_counter += 1
-            self.get_logger().info(f"[MOCK] Trascrizione simulata: {transcription}")
-        else:
-            try:
-                self.get_logger().info("Trascrizione in corso con Whisper")
-                result = self.local_whisper.transcribe(audio_path, language="it")
-                transcription = result['text']
-                self.get_logger().info(f"Trascrizione completata: {transcription}")
-            except Exception as e:
-                self.get_logger().error(f"Errore trascrizione: {e}")
-                transcription = "[ERRORE TRASCRIZIONE]"
+        transcription = self.transcribe_audio(audio_path)
         
-        self.get_logger().info(f"\n{'='*50}\nTRASCRIZIONE: {transcription}\n{'='*50}")
-
-
-    def stt_bdi_callback(self, msg):
-        """Callback per richieste STT da BDI agent"""
-        try:
-            data = json.loads(msg.data)
-            self.agente = data.get("agente", "agente")
-            self.percept = data.get("percept", "percept")
-            
-            self.get_logger().info(f"BDI - Agente: {self.agente}, Percept: {self.percept}")
-            
-            # Visualizzazione pagina HTML si_no.html tramite action Browsing
-            self.send_browsing("si_no.html", use_tablet=True)
-            
-        except json.JSONDecodeError as e:
-            self.get_logger().error(f"Errore parsing JSON: {e}")
-
-
-    def condividi_risposta(self, msg):
-        """Callback per gestione risposta utente (si/no)"""
-        risposta = msg.data
-        self.get_logger().info(f"Risposta ricevuta: {risposta}")
-        
-        if risposta == 'no':
-            # Nascondimento pagina HTML tramite visualizzazione pagina vuota
-            self.send_browsing("about:blank", use_tablet=True)
-        
-        # Preparazione messaggio JSON con risposta
-        messaggio_json = {
-            "trascrizione": risposta,
-            "agente": getattr(self, 'agente', 'agente'),
-            "percept": getattr(self, 'percept', 'percept')
-        }
-        
-        self.get_logger().info(f"Risposta BDI preparata: {messaggio_json}")
+        if transcription:
+            self.get_logger().info(f"\n{'='*50}\nTRASCRIZIONE: {transcription}\n{'='*50}")
 
 
     def destroy_node(self):

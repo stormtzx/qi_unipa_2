@@ -25,6 +25,13 @@ def generate_launch_description():
     )
 
     
+    reaction_mode_arg = DeclareLaunchArgument(
+        'reaction_mode',
+        default_value='Autonomous',
+        description='Definisce se Pepper deve reagire agli input o meno. ' \
+        'Utile in caso di utilizzo con un LLM'
+    )
+
     qi_unipa_2_sensor_node = Node(
         package='qi_unipa_2',
         executable='qi_unipa_2_sensor',  
@@ -33,7 +40,8 @@ def generate_launch_description():
         parameters=[{
             'mock_mode': LaunchConfiguration('mock_mode'),
             'ip': LaunchConfiguration('ip'),
-            'port': LaunchConfiguration('port')
+            'port': LaunchConfiguration('port'),
+            'reaction_mode': LaunchConfiguration('reaction_mode')
         }]
     )
     
@@ -108,7 +116,8 @@ def generate_launch_description():
         parameters=[{
             'mock_mode': LaunchConfiguration('mock_mode'),
             'ip': LaunchConfiguration('ip'),
-            'port': LaunchConfiguration('port')
+            'port': LaunchConfiguration('port'),
+            'reaction_mode': LaunchConfiguration('reaction_mode')
         }]
     )
     
@@ -128,6 +137,7 @@ def generate_launch_description():
         mock_mode_arg,
         ip_arg,
         port_arg,
+        reaction_mode_arg,
         qi_unipa_2_sensor_node,
         qi_unipa_2_movement_node,
         qi_unipa_2_speech_node,
