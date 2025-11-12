@@ -97,22 +97,9 @@ class QiUnipa2_speech(Node):
         self._action_server_talking = ActionServer(self, Talking, '/pepper/actions/talking', self.talking)
         self.browsing_client = ActionClient(self, Browsing, '/pepper/actions/browsing')
 
-
-        # Topic subscription
-        self.record_sub = self.create_subscription(Bool, "/pepper/topics/record", self.record_callback, qos_reliable_10)
-        self.record_no_mic = self.create_subscription(Bool, "/pepper/topics/record_no_mic", self.record_callback_no_mic, qos_reliable_10)
-        self.end_sub = self.create_subscription(Bool, "/pepper/topics/end", self.ending_callback, qos_reliable_10)
-        self.start_bdi_sub = self.create_subscription(Bool, "/pepper/topics/start_bdi", self.start_bdi_callback, qos_reliable_10)
-        
         # Topic publisher
         self.tracking_pub = self.create_publisher(Tracker, "/pepper/topics/tracker",  qos_reliable_10)
         self.isTalking_pub = self.create_publisher(Bool, '/pepper/topics/is_speaking',  qos_reliable_10)
-        self.isTalking_bdi_pub = self.create_publisher(Bool, '/pepper/topics/is_speaking_bdi', qos_reliable_10)
-        self.start_pub = self.create_publisher(Bool, '/pepper/topics/start_conv', qos_reliable_10)
-        self.show_pub = self.create_publisher(String, "/pepper/topics/show", qos_reliable_10)
-        self.stt_pub = self.create_publisher(String, "/pepper/topics/stt", qos_reliable_10)
-        self.stt_bdi_pub = self.create_publisher(String, "/pepper/topics/stt_bdi", qos_reliable_10)
-        self.touched = self.create_publisher(Bool, "/pepper/topics/touched", qos_reliable_10)
 
         self.agente = "agente"      
         self.percept = "percept"

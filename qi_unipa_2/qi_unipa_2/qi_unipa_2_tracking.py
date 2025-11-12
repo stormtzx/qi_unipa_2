@@ -64,7 +64,6 @@ class QiUnipa2_tracking(Node):
         # Publisher per coordinate oggetto tracciato (opzionale, continuo)
         self.tracked_coords_pub = self.create_publisher(PointStamped,'/pepper/topics/tracked_coordinates',10)
         
-
         # Timer per pubblicazione continua coordinate (10 Hz)
         self.create_timer(0.1, self.publish_tracked_coordinates)
 
@@ -79,13 +78,11 @@ class QiUnipa2_tracking(Node):
         
         # Service GetTrackedObjCoordinates (query on-demand)
         self.get_coords_service = self.create_service(GetTrackedObjCoordinates,'/pepper/services/get_tracked_object_coordinates',
-            self.get_tracked_object_coordinates
-        )
+            self.get_tracked_object_coordinates)
         
         # Service MoveToTrackedObject (navigazione verso oggetto tracciato)
         self.move_to_tracked_service = self.create_service(MoveToTrackedObj,'/pepper/services/move_to_tracked_object',
-            self.move_to_tracked_obj_callback
-        )
+            self.move_to_tracked_obj_callback)
 
     
     def call_set_posture_sync(self, posture_name, speed):

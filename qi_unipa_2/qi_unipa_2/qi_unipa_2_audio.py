@@ -66,8 +66,6 @@ class QiUnipa2_audio(Node):
         self.last_sound_location = None
         
         # Subscriptions per STT
-        self.stt_sub = self.create_subscription(String, "/pepper/topics/stt", self.stt_callback, qos_reliable_10)
-        self.stt_bdi_sub = self.create_subscription(String, "/pepper/topics/stt_bdi", self.stt_bdi_callback, qos_reliable_10)
         self.risposta_sub = self.create_subscription(String, "/pepper/topics/risposta_si_no", self.condividi_risposta, qos_reliable_10)
         
         # Connessione a Pepper per audio localization

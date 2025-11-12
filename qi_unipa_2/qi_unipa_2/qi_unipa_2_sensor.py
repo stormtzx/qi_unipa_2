@@ -56,7 +56,6 @@ class QiUnipa2_sensor(Node):
         # Inizializzazione publishers
         self.bumper_pub = self.create_publisher(Bumper, "/pepper/topics/bumper", qos_best_effort_10)
         self.head_touch_pub = self.create_publisher(HeadTouch, "/pepper/topics/head_touch", qos_best_effort_10)
-        self.speak_pub = self.create_publisher(String, "/pepper/topics/speak", qos_best_effort_10)
         self.battery_pub = self.create_publisher(Battery, "/pepper/topics/battery", qos_best_effort_10)
 
         # Action Client per Talking
@@ -198,7 +197,6 @@ class QiUnipa2_sensor(Node):
             if message:
                 string = String()
                 string.data = message
-                self.speak_pub.publish(string)
                 self.send_talking_action(message)
                 self.bumper_pressed = True
         
@@ -207,16 +205,13 @@ class QiUnipa2_sensor(Node):
             self.bumper_pressed = False
 
 
-
     def on_head_touch_event(self, position: str, value: float):
         """Callback eseguito al cambio di stato del touch testa"""
         self.get_logger().info(f"Head touch {position} event: {value}")
         
-        # Pubblicazione stato completo touch testa su topic ROS2
+        # === 1. Pubblica SEMPRE stato sensori (hardware layer) ===
         msg = HeadTouch()
-        
         try:
-            # Lettura di tutti i sensori touch testa da ALMemory
             msg.front = self.memory.getData("Device/SubDeviceList/Head/Touch/Front/Sensor/Value")
             msg.middle = self.memory.getData("Device/SubDeviceList/Head/Touch/Middle/Sensor/Value")
             msg.rear = self.memory.getData("Device/SubDeviceList/Head/Touch/Rear/Sensor/Value")
@@ -225,7 +220,7 @@ class QiUnipa2_sensor(Node):
             self.get_logger().error(f"Errore lettura head touch: {e}")
             return
         
-        # Reazione vocale al tocco
+        # === 2. Reazione vocale (SOLO se abilitato) ===
         if value > 0.5:
             message = None
             if position == "front":
@@ -237,10 +232,7 @@ class QiUnipa2_sensor(Node):
             
             if message:
                 self.get_logger().info(f"Touch rilevato: {message}")
-                string = String()
-                string.data = message
-                self.speak_pub.publish(string)
-
+                self.send_talking_action(message)
 
 
     def battery_sub(self):
@@ -263,12 +255,12 @@ class QiUnipa2_sensor(Node):
             msg.temperature = self.memory.getData("Device/SubDeviceList/Battery/Temperature/Sensor/Value")
             
             # Verifica se in carica (se corrente è negativa, sta caricando)
-            msg.charging = msg.current_ampere < 0
-            
+            msg.charging = msg.current_ampere < 0            
             self.battery_pub.publish(msg)
-            
+
         except Exception as e:
             self.get_logger().error(f"Errore battery_sub: {e}")
+            
 
     #Action per il parlato di Pepper
     def send_talking_action(self, text):
