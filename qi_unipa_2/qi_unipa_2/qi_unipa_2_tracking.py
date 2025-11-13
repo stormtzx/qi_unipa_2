@@ -1,7 +1,7 @@
 import qi
 import rclpy
 from rclpy.node import Node
-from qi_unipa_2_interfaces.srv import SetPosture, GetTrackedObjCoordinates, MoveToTrackedObj
+from qi_unipa_2_interfaces.srv import SetPosture, GetTrackedObjectCoordinates, MoveToTrackedObject
 from qi_unipa_2_interfaces.msg import Tracker
 from geometry_msgs.msg import PointStamped
 from std_msgs.msg import Bool, String
@@ -77,11 +77,11 @@ class QiUnipa2_tracking(Node):
         self.set_posture_client = self.create_client(SetPosture, '/pepper/services/set_posture')
         
         # Service GetTrackedObjCoordinates (query on-demand)
-        self.get_coords_service = self.create_service(GetTrackedObjCoordinates,'/pepper/services/get_tracked_object_coordinates',
+        self.get_coords_service = self.create_service(GetTrackedObjectCoordinates,'/pepper/services/get_tracked_object_coordinates',
             self.get_tracked_object_coordinates)
         
         # Service MoveToTrackedObject (navigazione verso oggetto tracciato)
-        self.move_to_tracked_service = self.create_service(MoveToTrackedObj,'/pepper/services/move_to_tracked_object',
+        self.move_to_tracked_service = self.create_service(MoveToTrackedObject,'/pepper/services/move_to_tracked_object',
             self.move_to_tracked_obj_callback)
 
     
