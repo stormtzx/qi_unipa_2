@@ -49,7 +49,7 @@ class QiUnipa2_audio(Node):
         if not mock_mode:
             try:
                 import whisper
-                self.local_whisper = whisper.load_model("medium")
+                self.local_whisper = whisper.load_model("base")
                 self.get_logger().info("Whisper caricato con successo")
             except Exception as e:
                 self.get_logger().error(f"Errore caricamento Whisper: {e}")

@@ -2,7 +2,7 @@ import qi
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
-from qi_unipa_2_interfaces.msg import Sonar, IMU, Infrared #type: ignore
+from qi_unipa_2_interfaces.msg import Sonar, IMU #,Infrared
 from qi_unipa_2_interfaces.srv import GetPosition #type: ignore
 from qi_unipa_2.utils import Utils #type: ignore
 
@@ -34,7 +34,7 @@ class QiUnipa2_reference(Node):
                 'gyro_x': 0.0, 'gyro_y': 0.0, 'gyro_z': 0.0,
                 'angle_x': 0.0, 'angle_y': 0.0
             }
-            self.mock_infrared = {'left_ir': 0.5, 'right_ir': 0.5}
+           # self.mock_infrared = {'left_ir': 0.5, 'right_ir': 0.5}
             self.mock_sonar = {'front_sonar': 0.5, 'back_sonar': 0.5}
             self.mock_position = {'x': 0.0, 'y': 0.0, 'theta': 0.0}
 
@@ -77,14 +77,14 @@ class QiUnipa2_reference(Node):
                     'gyro_x': 0.0, 'gyro_y': 0.0, 'gyro_z': 0.0,
                     'angle_x': 0.0, 'angle_y': 0.0
                 }
-                self.mock_infrared = {'left_ir': 0.5, 'right_ir': 0.5}
+               # self.mock_infrared = {'left_ir': 0.5, 'right_ir': 0.5}
                 self.mock_sonar = {'front_sonar': 0.5, 'back_sonar': 0.5}
                 self.mock_position = {'x': 0.0, 'y': 0.0, 'theta': 0.0}
 
         # Inizializzazione publishers
         self.sonar_pub = self.create_publisher(Sonar, "/pepper/topics/sonar", qos_best_effort_10)
         self.imu_pub = self.create_publisher(IMU, "/pepper/topics/imu", qos_best_effort_10)
-        self.infrared_pub = self.create_publisher(Infrared, "/pepper/topics/infrared", qos_best_effort_10)
+      #  self.infrared_pub = self.create_publisher(Infrared, "/pepper/topics/infrared", qos_best_effort_10)
         
         # Service GetPosition
         self.get_position_srv = self.create_service(GetPosition,'/pepper/services/get_position',self.get_position_callback,qos_profile=qos_reliable_10)
@@ -92,7 +92,7 @@ class QiUnipa2_reference(Node):
         # Timers per sensori continui
         self.timer_imu = self.create_timer(0.1, self.imu_callback)           # 10Hz
         self.timer_sonar = self.create_timer(1.0, self.sonar_callback)       # 1Hz
-        self.timer_infrared = self.create_timer(1.0, self.infrared_callback) # 1Hz
+       # self.timer_infrared = self.create_timer(1.0, self.infrared_callback) # 1Hz
 
 
     def get_position_callback(self, request, response):
@@ -138,18 +138,18 @@ class QiUnipa2_reference(Node):
         
         try:
             # Lettura accelerometro da ALMemory
-            msg.accel_x = self.memory.getData("Device/SubDeviceList/InertialSensor/AccelerometerX/Sensor/Value")
-            msg.accel_y = self.memory.getData("Device/SubDeviceList/InertialSensor/AccelerometerY/Sensor/Value")
-            msg.accel_z = self.memory.getData("Device/SubDeviceList/InertialSensor/AccelerometerZ/Sensor/Value")
+            msg.accel_x = float(self.memory.getData("Device/SubDeviceList/InertialSensorBase/AccelerometerX/Sensor/Value"))
+            msg.accel_y = float(self.memory.getData("Device/SubDeviceList/InertialSensorBase/AccelerometerY/Sensor/Value"))
+            msg.accel_z = float(self.memory.getData("Device/SubDeviceList/InertialSensorBase/AccelerometerZ/Sensor/Value"))
             
             # Lettura giroscopio da ALMemory
-            msg.gyro_x = self.memory.getData("Device/SubDeviceList/InertialSensor/GyroscopeX/Sensor/Value")
-            msg.gyro_y = self.memory.getData("Device/SubDeviceList/InertialSensor/GyroscopeY/Sensor/Value")
-            msg.gyro_z = self.memory.getData("Device/SubDeviceList/InertialSensor/GyroscopeZ/Sensor/Value")
+            msg.gyro_x = float(self.memory.getData("Device/SubDeviceList/InertialSensorBase/GyroscopeX/Sensor/Value"))
+            msg.gyro_y = float(self.memory.getData("Device/SubDeviceList/InertialSensorBase/GyroscopeY/Sensor/Value"))
+            msg.gyro_z = float(self.memory.getData("Device/SubDeviceList/InertialSensorBase/GyroscopeZ/Sensor/Value"))
             
             # Lettura angoli orientamento da ALMemory
-            msg.angle_x = self.memory.getData("Device/SubDeviceList/InertialSensor/AngleX/Sensor/Value")
-            msg.angle_y = self.memory.getData("Device/SubDeviceList/InertialSensor/AngleY/Sensor/Value")
+            msg.angle_x = float(self.memory.getData("Device/SubDeviceList/InertialSensorBase/AngleX/Sensor/Value"))
+            msg.angle_y = float(self.memory.getData("Device/SubDeviceList/InertialSensorBase/AngleY/Sensor/Value"))
             
             self.imu_pub.publish(msg)
             
@@ -176,7 +176,7 @@ class QiUnipa2_reference(Node):
         except Exception as e:
             self.get_logger().error(f"Errore sonar_callback: {e}")
 
-
+    '''
     def infrared_callback(self):
         """Pubblicazione dati sensori infrarossi a 1Hz"""
         msg = Infrared()
@@ -196,7 +196,7 @@ class QiUnipa2_reference(Node):
             
         except Exception as e:
             self.get_logger().error(f"Errore infrared_callback: {e}")
-
+    '''
 
     def destroy_node(self):
         """Cleanup quando nodo viene terminato"""
