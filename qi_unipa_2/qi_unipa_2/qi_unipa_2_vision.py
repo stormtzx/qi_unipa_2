@@ -239,8 +239,6 @@ class QiUnipa2_vision(Node):
             # Nessuna emozione rilevata (silenzioso)
             pass
 
-
-    #Funzione per stimare le coordinate tramite la camera 3d di pepper
     def get_camera_coordinates(self, request, response):
         """
         Service per ottenere coordinate 3D da depth camera.
@@ -272,7 +270,7 @@ class QiUnipa2_vision(Node):
             video_client = self.video_service.subscribeCamera(
                 "DepthClient",
                 camera_index,
-                K_QVGA,  # Depth map è sempre QVGA (320x240)
+                K_QVGA,  # Risoluzione depth map
                 11,      # kDepthColorSpace
                 30
             )
@@ -285,11 +283,47 @@ class QiUnipa2_vision(Node):
             if depth_data is None:
                 raise RuntimeError("Nessun dato depth dalla camera")
             
+            # ESTRAZIONE DIMENSIONI REALI
             width = depth_data[0]
             height = depth_data[1]
+            num_layers = depth_data[2]  # Per depth dovrebbe essere 1
             depth_binary = depth_data[6]
             
-            # Converte depth binary in array numpy (depth in mm, uint16)
+            # CALCOLO DIMENSIONE ATTESA
+            # Depth è uint16 (2 byte per pixel)
+            expected_size = width * height * 2  # 2 byte per pixel uint16
+            actual_size = len(depth_binary)
+            
+            # LOGGING DEBUG
+            self.get_logger().info(
+                f"Depth image: {width}x{height}x{num_layers}, "
+                f"expected_bytes={expected_size}, actual_bytes={actual_size}"
+            )
+            
+            # VALIDAZIONE
+            if actual_size != expected_size:
+                # Prova a inferire dimensioni corrette
+                num_pixels = actual_size // 2  # Dividi per 2 (uint16)
+                self.get_logger().warn(
+                    f"Size mismatch! Inferring dimensions from {num_pixels} pixels"
+                )
+                
+                # Prova dimensioni comuni
+                if num_pixels == 57600:  # 240x240
+                    width, height = 240, 240
+                elif num_pixels == 76800:  # 320x240
+                    width, height = 320, 240
+                elif num_pixels == 115200:  # 480x240
+                    width, height = 480, 240
+                else:
+                    raise ValueError(
+                        f"Cannot infer dimensions from {num_pixels} pixels "
+                        f"(bytes={actual_size})"
+                    )
+                
+                self.get_logger().info(f"Using inferred dimensions: {width}x{height}")
+            
+            # RESHAPE CON DIMENSIONI CORRETTE
             depth_array = np.frombuffer(depth_binary, dtype=np.uint16).reshape((height, width))
             
             # Verifica bounds pixel
@@ -373,7 +407,6 @@ class QiUnipa2_vision(Node):
                     pass
         
         return response
-
 
 
 def main(args=None):
