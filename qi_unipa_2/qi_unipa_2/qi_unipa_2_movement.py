@@ -6,9 +6,13 @@ import sys
 from std_msgs.msg import Int32
 from geometry_msgs.msg import Vector3
 from qi_unipa_2.utils import Utils #type: ignore
-from qi_unipa_2_interfaces.srv import SetState, SetPosture, SetJointAngles, SetHand #type: ignore
-from qi_unipa_2_interfaces.action import Walking, Navigating #type: ignore
+from qi_unipa_2_interfaces.srv import SetState, SetPosture, SetJointAngles, SetHand, GetTrackedObjectCoordinates, PlayAnimation #type: ignore
+from qi_unipa_2_interfaces.action import Walking, Navigating, Seeking #type: ignore
+from qi_unipa_2_interfaces.msg import Tracker
 import math
+import time
+
+
 
 
 class QiUnipa2_movement(Node):
@@ -27,10 +31,20 @@ class QiUnipa2_movement(Node):
         self._localization_active = False
         self._current_map_name = None
 
+
+        # Variabili di stato per Seeking
+        self._tracker_data = None
+        self._tracking_active = False
+        self._last_tracking_time = 0
+
+
+
         # Crea Utils
         utils = Utils(ip=ip, port=port, mock_mode=mock_mode)
         qos_reliable_10 = utils.get_QoS('reliable', 10)
         qos_best_effort_5 = utils.get_QoS('best_effort', 5)
+
+
 
         # Connessione condizionale
         if mock_mode:
@@ -38,6 +52,8 @@ class QiUnipa2_movement(Node):
             self.session = None
             self.motion = None
             self.posture = None
+            self.tracker = None
+            self.navigation = None
         else:
             try:
                 self.get_logger().info(f"Tentativo connessione a Pepper: {ip}:{port}")
@@ -49,6 +65,7 @@ class QiUnipa2_movement(Node):
                 self.navigation = self.session.service("ALNavigation")
                 self.motion = self.session.service("ALMotion")
                 self.posture = self.session.service("ALRobotPosture")
+                self.tracker = self.session.service("ALTracker")
                 self.get_logger().info("Connesso a Pepper!")
             except Exception as e:
                 self.get_logger().error(f"Impossibile connettersi a Pepper: {e}")
@@ -57,6 +74,9 @@ class QiUnipa2_movement(Node):
                 self.motion = None
                 self.posture = None
                 self.navigation = None
+                self.tracker = None
+
+
 
 
         # Dichiarazione service
@@ -64,11 +84,75 @@ class QiUnipa2_movement(Node):
         self.create_service(SetJointAngles, '/pepper/services/set_joint_angles', self.set_joint_angles, qos_profile=qos_reliable_10)
         self.create_service(SetPosture, '/pepper/services/set_posture', self.set_posture, qos_profile=qos_reliable_10)
         self.create_service(SetHand, '/pepper/services/set_hand', self.set_hand, qos_profile=qos_reliable_10)
+        self.create_service(PlayAnimation, '/pepper/services/play_animation', self.play_animation, qos_profile=qos_reliable_10)
         
         # Dichiarazione action
         self._action_server_walking = ActionServer(self, Walking, '/pepper/actions/walking', self.walking)
-          # ActionServer Navigating (NAVIGAZIONE AUTONOMA CON OBSTACLE AVOIDANCE)
-        self.navigating_server = ActionServer(self,Navigating,'/pepper/actions/navigating',self.navigating)
+        # ActionServer Navigating (NAVIGAZIONE AUTONOMA CON OBSTACLE AVOIDANCE)
+        self.navigating_server = ActionServer(self, Navigating, '/pepper/actions/navigating', self.navigating)
+        # ActionServer Seeking (SEEKING CON TRACKING E NAVIGAZIONE CONTINUA CON OBSTACLE AVOIDANCE)
+        self.seeking_server = ActionServer(self, Seeking, '/pepper/actions/seeking', self.seeking)
+
+
+        # Subscription a tracker data
+        self.create_subscription(Tracker, '/pepper/topics/tracker', self.on_tracker_data, qos_best_effort_5)
+
+
+
+
+
+    # ========== CALLBACKS TRACKER DATA ==========
+    def on_tracker_data(self, msg):
+        """Riceve dati di tracking da tracking.py"""
+        self._tracker_data = msg
+        self._last_tracking_time = time.time()
+
+
+
+    def get_tracked_position(self):
+        """Estrae coordinate 3D dal tracker data ricevuto"""
+        if self._tracker_data is None:
+            return None
+        
+        try:
+            # Il messaggio Tracker contiene le coordinate
+            x = self._tracker_data.x
+            y = self._tracker_data.y
+            z = self._tracker_data.z
+            return {'x': x, 'y': y, 'z': z}
+        except:
+            return None
+
+
+
+    def request_tracked_object_coordinates(self):
+        """Chiama service di tracking per ottenere coordinate attuali"""
+        if self.motion is None:
+            return None
+        
+        try:
+            # Verifica se esiste il service
+            client = self.create_client(GetTrackedObjectCoordinates, '/pepper/services/get_tracked_object_coordinates')
+            
+            if not client.wait_for_service(timeout_sec=2.0):
+                return None
+            
+            request = GetTrackedObjectCoordinates.Request()
+            future = client.call_async(request)
+            rclpy.spin_until_future_complete(self, future)
+            
+            result = future.result()
+            if result and result.success:
+                return {
+                    'x': result.x,
+                    'y': result.y,
+                    'z': result.z,
+                    'distance': result.distance
+                }
+        except:
+            pass
+        
+        return None
 
 
 
@@ -105,19 +189,98 @@ class QiUnipa2_movement(Node):
             return response
         
         names = request.names
-        angles = request.angles.tolist()
+        angles = request.angles.tolist() if hasattr(request.angles, 'tolist') else list(request.angles)
         speed = request.speed
+        
+        # ✅ VALIDAZIONE PARAMETRI
+        # 1. Verifica che ci siano nomi e angoli
+        if not names or not angles:
+            self.get_logger().error("❌ Errore: nomi o angoli vuoti")
+            response.success = False
+            response.message = "Nomi o angoli vuoti"
+            return response
+        
+        # 2. Verifica lunghezza uguale
+        if len(names) != len(angles):
+            self.get_logger().error(f"❌ Lunghezza diversa: {len(names)} nomi vs {len(angles)} angoli")
+            response.success = False
+            response.message = f"Lunghezza diversa: {len(names)} nomi, {len(angles)} angoli"
+            return response
+        
+        # 3. Verifica velocità valida
+        if speed <= 0.0 or speed > 1.0:
+            self.get_logger().error(f"❌ Velocità non valida: {speed} (deve essere 0 < speed <= 1.0)")
+            response.success = False
+            response.message = f"Velocità non valida: {speed}"
+            return response
+        
+        # 4. Verifica nomi articolazioni validi
+        valid_joints = [
+            "HeadYaw", "HeadPitch",
+            "LShoulderPitch", "LShoulderRoll", "LElbowYaw", "LElbowRoll", "LWristYaw",
+            "RShoulderPitch", "RShoulderRoll", "RElbowYaw", "RElbowRoll", "RWristYaw",
+            "LHand", "RHand",
+            "HipRoll", "HipPitch", "KneePitch"
+        ]
+        
+        for name in names:
+            if name not in valid_joints:
+                self.get_logger().error(f"❌ Articolazione non valida: {name}")
+                response.success = False
+                response.message = f"Articolazione '{name}' non valida"
+                return response
+        
+        # 5. Verifica range angoli (in radianti)
+        # Range approssimativi per sicurezza
+        angle_limits = {
+            "HeadYaw": (-2.0857, 2.0857),
+            "HeadPitch": (-0.7068, 0.6371),
+            "LShoulderPitch": (-2.0857, 2.0857),
+            "RShoulderPitch": (-2.0857, 2.0857),
+            "LShoulderRoll": (-0.3142, 1.3265),
+            "RShoulderRoll": (-1.3265, 0.3142),
+            "LElbowYaw": (-2.0857, 2.0857),
+            "RElbowYaw": (-2.0857, 2.0857),
+            "LElbowRoll": (-1.5446, -0.0349),
+            "RElbowRoll": (0.0349, 1.5446),
+            "LWristYaw": (-1.8238, 1.8238),
+            "RWristYaw": (-1.8238, 1.8238),
+            "HipRoll": (-0.5149, 0.5149),
+            "HipPitch": (-1.0385, 1.0385),
+            "KneePitch": (-0.5149, 0.5149),
+        }
+        
+        for i, (name, angle) in enumerate(zip(names, angles)):
+            if name in angle_limits:
+                min_angle, max_angle = angle_limits[name]
+                if angle < min_angle or angle > max_angle:
+                    self.get_logger().warn(
+                        f"⚠️ Angolo fuori range per {name}: {angle:.2f} "
+                        f"(range: [{min_angle:.2f}, {max_angle:.2f}])"
+                    )
+                    # Clamp al range valido
+                    angles[i] = max(min_angle, min(angle, max_angle))
+                    self.get_logger().warn(f"   → Clamped a: {angles[i]:.2f}")
+        
+        # ✅ LOG DETTAGLIATO PRIMA DELLA CHIAMATA
+        self.get_logger().info(f"🤖 set_joint_angles:")
+        self.get_logger().info(f"   Names: {names}")
+        self.get_logger().info(f"   Angles: {[f'{a:.3f}' for a in angles]}")
+        self.get_logger().info(f"   Speed: {speed}")
         
         try:
             self.motion.angleInterpolationWithSpeed(names, angles, speed)
             response.success = True
             response.message = "Joint movement executed"
+            self.get_logger().info("✅ Movimento completato")
         except Exception as e:
-            self.get_logger().error(f"Errore set_joint_angles: {e}")
+            self.get_logger().error(f"❌ Errore set_joint_angles: {e}")
             response.success = False
             response.message = str(e)
+        
         return response
- 
+
+
 
     #Callback per il service: SetPosture
     def set_posture(self, request, response):
@@ -139,6 +302,8 @@ class QiUnipa2_movement(Node):
             response.success = False
             response.message = str(e)
         return response
+
+
 
 
     #Callback per il service: SetHand
@@ -177,6 +342,197 @@ class QiUnipa2_movement(Node):
         return response
 
 
+
+    #Callback per il service: PlayAnimation
+    def play_animation(self, request, response):
+        """Service per eseguire animazioni predefinite"""
+        
+        if self.motion is None:
+            self.get_logger().warn(f"[MOCK] Animation '{request.animation_type}' simulata")
+            response.success = True
+            response.message = f"MOCK: Animation {request.animation_type} eseguita"
+            return response
+        
+        animation_type = request.animation_type
+        
+        try:
+            if animation_type == "dancing":
+                self._dancing(request.repetitions or 3)
+            elif animation_type == "waving":
+                self._waving(request.side or "right")
+            elif animation_type == "nodding":
+                self._nodding(request.repetitions or 3)
+            elif animation_type == "shaking_head":
+                self._shaking_head(request.repetitions or 3)
+            elif animation_type == "celebrating":
+                self._celebrating()
+            elif animation_type == "pointing":
+                self._pointing(request.direction or "front")
+            elif animation_type == "shrugging":
+                self._shrugging()
+            elif animation_type == "bowing":
+                self._bowing()
+            elif animation_type == "thinking":
+                self._thinking(request.duration or 3.0)
+            elif animation_type == "clapping":
+                self._clapping(request.repetitions or 5)
+            else:
+                response.success = False
+                response.message = f"Animazione '{animation_type}' non supportata"
+                return response
+            
+            response.success = True
+            response.message = f"Animazione {animation_type} completata"
+        
+        except Exception as e:
+            self.get_logger().error(f"Errore animazione: {e}")
+            response.success = False
+            response.message = str(e)
+        
+        return response
+
+
+
+    # ========== METODI PRIVATI PER ANIMAZIONI ==========
+    
+    def _dancing(self, cycles):
+        """Pepper balla"""
+        for i in range(cycles):
+            self.motion.angleInterpolationWithSpeed(
+                ["HipRoll", "LShoulderPitch", "RShoulderPitch"],
+                [-0.3, -1.0, -1.0], 0.5
+            )
+            time.sleep(0.4)
+            self.motion.angleInterpolationWithSpeed(
+                ["HipRoll", "LShoulderPitch", "RShoulderPitch"],
+                [0.3, -1.0, -1.0], 0.5
+            )
+            time.sleep(0.4)
+        self.posture.goToPosture("Stand", 0.5)
+
+
+    def _waving(self, side):
+        """Pepper saluta"""
+        if side == "right":
+            shoulder, elbow, wrist = "RShoulderPitch", "RElbowRoll", "RWristYaw"
+            elbow_value = 1.0
+        else:
+            shoulder, elbow, wrist = "LShoulderPitch", "LElbowRoll", "LWristYaw"
+            elbow_value = -1.0
+        
+        self.motion.angleInterpolationWithSpeed([shoulder, elbow], [-1.5, elbow_value], 0.5)
+        for _ in range(3):
+            self.motion.angleInterpolationWithSpeed([wrist], [0.5], 0.3)
+            time.sleep(0.2)
+            self.motion.angleInterpolationWithSpeed([wrist], [-0.5], 0.3)
+            time.sleep(0.2)
+        self.posture.goToPosture("Stand", 0.5)
+
+
+    def _nodding(self, times):
+        """Pepper annuisce"""
+        for _ in range(times):
+            self.motion.angleInterpolationWithSpeed(["HeadPitch"], [0.4], 0.5)
+            time.sleep(0.3)
+            self.motion.angleInterpolationWithSpeed(["HeadPitch"], [-0.2], 0.5)
+            time.sleep(0.3)
+        self.motion.angleInterpolationWithSpeed(["HeadPitch"], [0.0], 0.3)
+
+
+    def _shaking_head(self, times):
+        """Pepper scuote la testa"""
+        for _ in range(times):
+            self.motion.angleInterpolationWithSpeed(["HeadYaw"], [0.6], 0.4)
+            time.sleep(0.2)
+            self.motion.angleInterpolationWithSpeed(["HeadYaw"], [-0.6], 0.4)
+            time.sleep(0.2)
+        self.motion.angleInterpolationWithSpeed(["HeadYaw"], [0.0], 0.3)
+
+
+    def _celebrating(self):
+        """Pepper celebra"""
+        self.motion.angleInterpolationWithSpeed(
+            ["LShoulderPitch", "RShoulderPitch", "LShoulderRoll", "RShoulderRoll"],
+            [-1.5, -1.5, 0.3, -0.3], 0.7
+        )
+        time.sleep(1.5)
+        self.posture.goToPosture("Stand", 0.5)
+
+
+    def _pointing(self, direction):
+        """Pepper indica una direzione"""
+        if direction == "right":
+            self.motion.angleInterpolationWithSpeed(
+                ["RShoulderPitch", "RShoulderRoll", "RElbowRoll"],
+                [0.0, -0.3, 0.0], 0.5
+            )
+        elif direction == "left":
+            self.motion.angleInterpolationWithSpeed(
+                ["LShoulderPitch", "LShoulderRoll", "LElbowRoll"],
+                [0.0, 0.3, 0.0], 0.5
+            )
+        else:
+            self.motion.angleInterpolationWithSpeed(
+                ["RShoulderPitch", "RElbowRoll"],
+                [-0.5, 0.0], 0.5
+            )
+        time.sleep(2.0)
+        self.posture.goToPosture("Stand", 0.5)
+
+
+    def _shrugging(self):
+        """Pepper alza le spalle"""
+        self.motion.angleInterpolationWithSpeed(
+            ["LShoulderPitch", "RShoulderPitch", "LShoulderRoll", "RShoulderRoll"],
+            [-0.5, -0.5, 0.5, -0.5], 0.5
+        )
+        self.motion.angleInterpolationWithSpeed(["HeadPitch"], [0.2], 0.3)
+        time.sleep(1.5)
+        self.posture.goToPosture("Stand", 0.5)
+
+
+    def _bowing(self):
+        """Pepper fa un inchino"""
+        self.motion.angleInterpolationWithSpeed(
+            ["HeadPitch", "HipPitch"],
+            [0.5, -0.5], 0.6
+        )
+        time.sleep(1.0)
+        self.motion.angleInterpolationWithSpeed(
+            ["HeadPitch", "HipPitch"],
+            [0.0, 0.0], 0.6
+        )
+
+
+    def _thinking(self, duration):
+        """Pepper assume posizione pensierosa"""
+        self.motion.angleInterpolationWithSpeed(
+            ["RShoulderPitch", "RShoulderRoll", "RElbowYaw", "RElbowRoll"],
+            [-0.5, -0.1, 1.0, 1.5], 0.5
+        )
+        self.motion.angleInterpolationWithSpeed(["HeadPitch", "HeadYaw"], [0.2, 0.3], 0.3)
+        time.sleep(duration)
+        self.posture.goToPosture("Stand", 0.5)
+
+
+    def _clapping(self, times):
+        """Pepper applaude"""
+        self.motion.angleInterpolationWithSpeed(
+            ["LShoulderPitch", "RShoulderPitch", "LElbowRoll", "RElbowRoll"],
+            [0.5, 0.5, -1.5, 1.5], 0.5
+        )
+        for _ in range(times):
+            self.motion.openHand("LHand")
+            self.motion.openHand("RHand")
+            time.sleep(0.15)
+            self.motion.closeHand("LHand")
+            self.motion.closeHand("RHand")
+            time.sleep(0.15)
+        self.posture.goToPosture("Stand", 0.5)
+
+
+
+
     #Riferito all'action: Walking
     def walking(self, goal_handle):
         x = goal_handle.request.x
@@ -185,10 +541,14 @@ class QiUnipa2_movement(Node):
         
         self.get_logger().info(f"Walking to ({x}, {y}, {theta})")
 
+
+
         # Feedback iniziale
         walking_feedback = Walking.Feedback()
         walking_feedback.current_status = "Walking..."
         goal_handle.publish_feedback(walking_feedback)
+
+
 
         if self.motion is None:
             self.get_logger().warn(f"[MOCK] Walking simulato: x={x}, y={y}, theta={theta}")
@@ -203,6 +563,8 @@ class QiUnipa2_movement(Node):
             walking_feedback.current_status = "MOCK: Walking completato"
             return result
 
+
+
         # Esecuzione reale
         try:
             self.motion.moveTo(x, y, theta)
@@ -211,7 +573,7 @@ class QiUnipa2_movement(Node):
             goal_handle.succeed()
             result = Walking.Result()
             result.success = True
-            walking_feedback.current_status  = "Walking completato"
+            walking_feedback.current_status = "Walking completato"
             return result
         except Exception as e:
             self.get_logger().error(f"Errore walking: {e}")
@@ -220,9 +582,14 @@ class QiUnipa2_movement(Node):
             result.success = False
             walking_feedback.current_status = str(e)
             return result
+        
+
+
+
 
     # Riferito all'action: Navigating
-    def navigating(self, goal_handle):
+    # ATTENZIONE: NAVIGATING FUNZIONA FINO AD UNA DISTANZA MASSIMA DI 3 METRI valutare una funzione wrap di loop per dist maggiori
+    def navigating(self, goal_handle): 
         """Action callback per navigazione autonoma con obstacle avoidance"""
         target_x = goal_handle.request.target_x
         target_y = goal_handle.request.target_y
@@ -233,6 +600,8 @@ class QiUnipa2_movement(Node):
         
         self.get_logger().info(f"Navigating to ({target_x}, {target_y}), use_map={use_map}")
 
+
+
         # Feedback iniziale
         feedback = Navigating.Feedback()
         feedback.status = "planning"
@@ -240,6 +609,8 @@ class QiUnipa2_movement(Node):
         feedback.current_y = 0.0
         feedback.distance_remaining = 0.0
         goal_handle.publish_feedback(feedback)
+
+
 
         # ===== MOCK MODE =====
         if self.motion is None or self.navigation is None:
@@ -260,6 +631,8 @@ class QiUnipa2_movement(Node):
             result.final_y = target_y
             result.distance_to_target = 0.0
             return result
+
+
 
         # ===== ESECUZIONE REALE =====
         try:
@@ -356,6 +729,8 @@ class QiUnipa2_movement(Node):
             return result
 
 
+
+
             
         except Exception as e:
             self.get_logger().error(f"Errore: {e}")
@@ -384,12 +759,268 @@ class QiUnipa2_movement(Node):
 
 
 
+
+
+    # ========== SEEKING ACTION ==========
+    # Aggregazione di Tracking + Navigazione continua con obstacle avoidance per seguire un target
+    def seeking(self, goal_handle):
+        """
+        Action callback per SEEKING: segue un target utilizzando ALTracker + ALNavigation
+        
+        Goal:
+            - target_type: "Face", "People", "LandMark"
+            - approach_distance: distanza a cui fermarsi dal target (default: 1.0m)
+        
+        Feedback:
+            - status_message: stato attuale ("searching", "found", "following", "approaching")
+            - distance_remaining: distanza corrente dal target
+            - current_x, current_y: coordinate attuali del target
+        
+        Result:
+            - success: True se target raggiunto, False altrimenti
+            - status: "reached", "lost", "timeout", "blocked"
+            - final_distance: distanza finale dal target
+        """
+        
+        target_type = goal_handle.request.target_type
+        approach_distance = goal_handle.request.approach_distance if goal_handle.request.approach_distance > 0 else 1.0
+        
+        self.get_logger().info(f"Seeking started: target_type={target_type}, approach_distance={approach_distance}m")
+        
+        # Feedback iniziale
+        feedback = Seeking.Feedback()
+        feedback.status_message = "searching"
+        feedback.distance_remaining = 0.0
+        feedback.current_x = 0.0
+        feedback.current_y = 0.0
+        goal_handle.publish_feedback(feedback)
+        
+        # ===== MOCK MODE =====
+        if self.motion is None or self.tracker is None or self.navigation is None:
+            self.get_logger().warn("[MOCK] Seeking simulato")
+            
+            feedback.status_message = "MOCK: found"
+            feedback.distance_remaining = 0.5
+            feedback.current_x = 1.0
+            feedback.current_y = 0.5
+            goal_handle.publish_feedback(feedback)
+            
+            goal_handle.succeed()
+            result = Seeking.Result()
+            result.success = True
+            result.status = "reached"
+            result.final_distance = 0.0
+            return result
+        
+        # ===== ESECUZIONE REALE =====
+        try:
+            # Step 1: Setup postura
+            self.get_logger().info("Setting up posture...")
+            try:
+                self.posture.goToPosture("Stand", 0.5)
+            except:
+                pass
+            
+            time.sleep(1.0)
+            
+            # Step 2: Avvia tracking
+            self.get_logger().info(f"Starting tracking for {target_type}...")
+            try:
+                # Registra target
+                if target_type == "Face":
+                    self.tracker.registerTarget("Face", 0.15)
+                elif target_type == "People":
+                    self.tracker.registerTarget("People", 0.3)
+                elif target_type == "LandMark":
+                    self.tracker.registerTarget("LandMark", 0.08)
+                else:
+                    self.get_logger().error(f"Target type {target_type} non supportato")
+                    goal_handle.abort()
+                    result = Seeking.Result()
+                    result.success = False
+                    result.status = "invalid_target"
+                    result.final_distance = 0.0
+                    return result
+                
+                # Attiva tracking - SOLO TESTA (non "Move")
+                # Perché il corpo lo muove navigating
+                self.tracker.setMode("Head")
+                self.tracker.track(target_type)
+                
+            except Exception as e:
+                self.get_logger().error(f"Errore avvio tracking: {e}")
+                goal_handle.abort()
+                result = Seeking.Result()
+                result.success = False
+                result.status = "tracking_error"
+                result.final_distance = 0.0
+                return result
+            
+            self._tracking_active = True
+            
+            # Step 3: Loop principale di seeking con navigating
+            timeout_counter = 0
+            max_timeout = 20  # 20 secondi di perdita tracking (1s per loop)
+            loop_count = 0
+            max_loops = 120  # Timeout massimo 2 minuti
+            
+            while loop_count < max_loops:
+                loop_count += 1
+                
+                # Ottieni posizione target
+                target_position = self.get_tracked_position()
+                
+                if target_position is None:
+                    # Prova service call come backup
+                    target_position = self.request_tracked_object_coordinates()
+                
+                if target_position is None:
+                    # Tracking perso
+                    timeout_counter += 1
+                    
+                    feedback.status_message = "lost"
+                    feedback.distance_remaining = -1.0
+                    goal_handle.publish_feedback(feedback)
+                    
+                    self.get_logger().warn(f"Tracking lost ({timeout_counter}/{max_timeout})")
+                    
+                    if timeout_counter >= max_timeout:
+                        self.get_logger().error("Target perso definitivamente")
+                        goal_handle.abort()
+                        
+                        result = Seeking.Result()
+                        result.success = False
+                        result.status = "lost"
+                        result.final_distance = -1.0
+                        return result
+                    
+                    time.sleep(1.0)
+                    continue
+                
+                # Target trovato
+                timeout_counter = 0
+                
+                x = target_position['x']
+                y = target_position['y']
+                z = target_position.get('z', 0.0)
+                distance = math.sqrt(x**2 + y**2 + z**2)
+                
+                feedback.current_x = x
+                feedback.current_y = y
+                feedback.distance_remaining = distance
+                
+                # Verifica se raggiunto
+                if distance < approach_distance:
+                    feedback.status_message = "reached"
+                    goal_handle.publish_feedback(feedback)
+                    
+                    self.get_logger().info(f"Target raggiunto! Distance: {distance:.2f}m")
+                    
+                    # Stop tracking
+                    self._tracking_active = False
+                    try:
+                        self.tracker.stopTracker()
+                        self.tracker.unregisterAllTargets()
+                    except:
+                        pass
+                    
+                    # Successo
+                    goal_handle.succeed()
+                    result = Seeking.Result()
+                    result.success = True
+                    result.status = "reached"
+                    result.final_distance = distance
+                    return result
+                
+                # Naviga verso target con obstacle avoidance
+                feedback.status_message = "approaching"
+                goal_handle.publish_feedback(feedback)
+                
+                # Calcola target intermedio (non tutto il percorso)
+                # Cosi possiamo aggiornare piu spesso
+                max_step = 0.5  # Max 50cm per step
+                
+                if distance > max_step:
+                    # Normalizza e scala a max_step
+                    factor = max_step / distance
+                    nav_x = x * factor
+                    nav_y = y * factor
+                else:
+                    # Se vicino, vai diretto
+                    nav_x = x
+                    nav_y = y
+                
+                # Usa navigating con coordinate relative
+                self.get_logger().info(f"Navigating step: distance={distance:.2f}m, target=({nav_x:.2f}, {nav_y:.2f})")
+                
+                try:
+                    # navigateTo e bloccante MA con obstacle avoidance
+                    success = self.navigation.navigateTo(nav_x, nav_y)
+                    
+                    if not success:
+                        # Bloccato da ostacolo
+                        self.get_logger().warn("Navigazione bloccata da ostacolo")
+                        
+                        # Prova a girare attorno
+                        time.sleep(0.5)
+                        
+                        # Riprova nella prossima iterazione con nuove coordinate
+                        continue
+                        
+                except Exception as e:
+                    self.get_logger().error(f"Errore navigazione: {e}")
+                    goal_handle.abort()
+                    
+                    result = Seeking.Result()
+                    result.success = False
+                    result.status = "blocked"
+                    result.final_distance = distance
+                    return result
+                
+                # Piccola pausa prima di aggiornare target
+                # (navigateTo e bloccante, quindi arriviamo qui solo quando finito)
+                time.sleep(0.2)
+            
+            # Timeout massimo raggiunto
+            self.get_logger().error("Timeout massimo seeking raggiunto")
+            goal_handle.abort()
+            
+            result = Seeking.Result()
+            result.success = False
+            result.status = "timeout"
+            result.final_distance = -1.0
+            return result
+        
+        except Exception as e:
+            self.get_logger().error(f"Errore seeking: {e}")
+            goal_handle.abort()
+            
+            result = Seeking.Result()
+            result.success = False
+            result.status = "error"
+            result.final_distance = -1.0
+            return result
+        
+        finally:
+            # Cleanup
+            self._tracking_active = False
+            try:
+                self.tracker.stopTracker()
+                self.tracker.unregisterAllTargets()
+            except:
+                pass
+
+
+
+
 def main(args=None):
     rclpy.init(args=args)
     node = QiUnipa2_movement()
     rclpy.spin(node)
     rclpy.shutdown()
     
+
+
 
 if __name__ == '__main__':
     main()

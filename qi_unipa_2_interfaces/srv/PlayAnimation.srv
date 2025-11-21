@@ -1,0 +1,11 @@
+
+# Request
+string animation_type    # "dancing", "waving", "nodding", "shaking_head", "celebrating", "pointing", "shrugging", "bowing", "thinking", "clapping"
+int32 repetitions        # Numero ripetizioni (default: 1)
+string side              # "left", "right", "both" (per waving, pointing)
+string direction         # "left", "right", "front" (per pointing)
+float32 duration         # Durata in secondi (per thinking)
+---
+# Response
+bool success
+string message

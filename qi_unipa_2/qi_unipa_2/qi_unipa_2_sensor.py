@@ -174,18 +174,22 @@ class QiUnipa2_sensor(Node):
     def battery_sub(self):
         msg = Battery()
         if self.memory is None:
-            msg.charge_percent = 85.0
-            msg.current_ampere = 0.5
-            msg.temperature = 30.0
+            msg.charge_percent = "85.0%"
+            msg.current_ampere = "0.5A"
+            msg.temperature = "30.0°C"
             msg.charging = False
             self.battery_pub.publish(msg)
             return
         
         try:
-            msg.charge_percent = float(self.memory.getData("Device/SubDeviceList/Battery/Charge/Sensor/Value"))
-            msg.current_ampere = float(self.memory.getData("Device/SubDeviceList/Battery/Current/Sensor/Value"))
-            msg.temperature = float(self.memory.getData("Device/SubDeviceList/Battery/Temperature/Sensor/Value"))
-            msg.charging = msg.current_ampere < 0            
+            charge_val = round(float(self.memory.getData("Device/SubDeviceList/Battery/Charge/Sensor/Value")) * 100, 2)
+            current_val = round(float(self.memory.getData("Device/SubDeviceList/Battery/Current/Sensor/Value")), 2)
+            temp_val = round(float(self.memory.getData("Device/SubDeviceList/Battery/Temperature/Sensor/Value")), 2)
+
+            msg.charge_percent = f"{charge_val:.2f}%"
+            msg.current_ampere = f"{current_val:.2f}A"
+            msg.temperature = f"{temp_val:.2f}°C"
+            msg.charging = current_val >= 0
             self.battery_pub.publish(msg)
         except Exception as e:
             self.get_logger().error(f"Errore battery_sub: {e}")

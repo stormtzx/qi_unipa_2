@@ -36,9 +36,12 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/GetTrackedObjectCoordinates.srv"
   "srv/MoveToTrackedObject.srv" 
   "srv/MoveToSound.srv"
+  "srv/PlayAnimation.srv"
   "action/Walking.action"
   "action/Navigating.action"
+  "action/Seeking.action"
   "action/Talking.action"
+  "action/Listening.action"
   "action/Browsing.action"
   DEPENDENCIES std_msgs action_msgs sensor_msgs geometry_msgs
 )

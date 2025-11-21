@@ -36,7 +36,7 @@ class QiUnipa2_reference(Node):
             }
            # self.mock_infrared = {'left_ir': 0.5, 'right_ir': 0.5}
             self.mock_sonar = {'front_sonar': 0.5, 'back_sonar': 0.5}
-            self.mock_position = {'x': 0.0, 'y': 0.0, 'theta': 0.0}
+            self.mock_position = {'x': 1.0, 'y': 2.0, 'theta': 3.0}
 
         # Connessione condizionale a Pepper
         if mock_mode:
@@ -115,7 +115,7 @@ class QiUnipa2_reference(Node):
             self.get_logger().error(f"Errore get_position_callback: {e}")
             response.x = 0.0
             response.y = 0.0
-            response.theta = 0.0
+            response.theta = 20.0
         
         return response
 

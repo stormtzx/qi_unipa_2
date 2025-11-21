@@ -11,6 +11,12 @@ def generate_launch_description():
         default_value='false',
         description='Enable MOCK mode (OFFLINE TESTING: no Pepper connection)'
     )
+
+    use_local_mic_arg = DeclareLaunchArgument(
+        'use_local_mic',
+        default_value='false',
+        description='Usare il microfono locale in modalita mock sul nodo audio per i test di trascrizione'
+    )
     
     ip_arg = DeclareLaunchArgument(
         'ip',
@@ -77,7 +83,9 @@ def generate_launch_description():
     parameters=[{
         'mock_mode': LaunchConfiguration('mock_mode'),
         'ip': LaunchConfiguration('ip'),
-        'port': LaunchConfiguration('port')
+        'port': LaunchConfiguration('port'),
+        'use_local_mic': LaunchConfiguration('use_local_mic')
+
     }]
     )
 
@@ -135,6 +143,7 @@ def generate_launch_description():
 
     return LaunchDescription([
         mock_mode_arg,
+        use_local_mic_arg,
         ip_arg,
         port_arg,
         reaction_mode_arg,

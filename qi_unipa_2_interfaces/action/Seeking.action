@@ -1,0 +1,14 @@
+# Goal
+string target_type              # "Face", "People", "LandMark"
+float32 approach_distance       # Distanza a cui fermarsi (default: 1.0m)
+---
+# Result
+bool success
+string status                   # "reached", "lost", "timeout", "blocked", "error"
+float32 final_distance          # Distanza finale dal target
+---
+# Feedback
+string status_message           # "searching", "found", "approaching", "reached", "lost"
+float32 distance_remaining      # Distanza attuale
+float32 current_x               # Coordinata X target
+float32 current_y               # Coordinata Y target

@@ -1,0 +1,12 @@
+# Goal
+bool start_listening
+string audio_source  # Sorgente audio: "pepper" (default), "pc", "external"
+---
+# Result
+string transcription
+bool success
+string error_message
+---
+# Feedback
+string status  # "recording", "downloading", "transcribing"
+float32 progress  # 0.0 - 1.0
