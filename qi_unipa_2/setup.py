@@ -25,7 +25,6 @@ setup(
             'qi_unipa_2_sensor = qi_unipa_2.qi_unipa_2_sensor:main',
             'qi_unipa_2_movement = qi_unipa_2.qi_unipa_2_movement:main',
             'qi_unipa_2_speech = qi_unipa_2.qi_unipa_2_speech:main',
-            'qi_unipa_2_tracking = qi_unipa_2.qi_unipa_2_tracking:main',
             'qi_unipa_2_server = qi_unipa_2.qi_unipa_2_server:main',
             'qi_unipa_2_vision = qi_unipa_2.qi_unipa_2_vision:main',
             'qi_unipa_2_audio = qi_unipa_2.qi_unipa_2_audio:main',

@@ -1,143 +1,337 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Orologio con campi</title>
-  <style>
-    body {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-      background: #fafafa;
-      font-family: Arial, sans-serif;
-      position: relative;
-    }
-
-    .clock {
-      position: relative;
-      width: 300px;
-      height: 300px;
-      border: 8px solid #333;
-      border-radius: 50%;
-      background: white;
-    }
-
-    .number-input {
-      position: absolute;
-      width: 40px;
-      height: 30px;
-      font-size: 1rem;
-      text-align: center;
-      border: 2px solid black;
-      border-radius: 5px;
-      background: white;
-      outline: none;
-    }
-
-    .next-button {
-      position: absolute;
-      bottom: 30px;
-      right: 30px;
-      padding: 15px 30px;
-      font-size: 1.2rem;
-      border: none;
-      border-radius: 10px;
-      background-color: #4CAF50;
-      color: white;
-      cursor: not-allowed;
-      opacity: 0.6;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-      transition: background-color 0.3s;
-    }
-
-    .next-button.enabled {
-      cursor: pointer;
-      opacity: 1;
-    }
-
-    .next-button.enabled:hover {
-      background-color: #45a049;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test MiniCog - Orologio</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        h1 {
+            color: #333;
+        }
+        
+        .page {
+            display: none;
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        #clockPage {
+            display: block;
+        }
+        
+        #clock {
+            width: 300px;
+            height: 300px;
+            border: 4px solid #333;
+            border-radius: 50%;
+            position: relative;
+            margin: 30px auto;
+            background: white;
+        }
+        
+        .center-dot {
+            width: 15px;
+            height: 15px;
+            background: #333;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+        }
+        
+        .hand {
+            position: absolute;
+            background: #333;
+            transform-origin: bottom center;
+            left: 50%;
+            bottom: 50%;
+            transition: transform 0.3s ease;
+        }
+        
+        .hour-hand {
+            width: 6px;
+            height: 80px;
+            margin-left: -3px;
+        }
+        
+        .minute-hand {
+            width: 4px;
+            height: 110px;
+            margin-left: -2px;
+            background: #666;
+        }
+        
+        .controls {
+            margin: 20px 0;
+        }
+        
+        .control-group {
+            display: inline-block;
+            margin: 10px 20px;
+            vertical-align: top;
+        }
+        
+        .control-group h3 {
+            margin: 5px 0;
+            font-size: 16px;
+        }
+        
+        .arrow-btn {
+            font-size: 24px;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        
+        .arrow-btn:hover {
+            background: #45a049;
+        }
+        
+        .time-display {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        
+        button {
+            padding: 15px 30px;
+            font-size: 18px;
+            margin: 10px;
+            cursor: pointer;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        
+        button:hover {
+            background: #0b7dda;
+        }
+        
+        canvas {
+            border: 2px solid #333;
+            cursor: crosshair;
+            margin: 20px auto;
+            display: block;
+            background: white;
+        }
+        
+        .status {
+            margin: 20px;
+            font-size: 16px;
+            color: green;
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
-  <div class="clock" id="clock"></div>
-  <button class="next-button" id="nextBtn" onclick="prosegui()" disabled>Avanti</button>
+    <div id="clockPage" class="page">
+        <h1>🕐 Imposta l'orologio alle 11:10</h1>
+        <p>Usa le frecce per impostare l'ora corretta</p>
+        
+        <div id="clock">
+            <div class="center-dot"></div>
+            <div class="hand hour-hand" id="hourHand"></div>
+            <div class="hand minute-hand" id="minuteHand"></div>
+        </div>
+        
+        <div class="time-display">
+            Orario: <span id="timeDisplay">12:00</span>
+        </div>
+        
+        <div class="controls">
+            <div class="control-group">
+                <h3>Ore</h3>
+                <button class="arrow-btn" onclick="changeHour(1)">▲</button><br>
+                <button class="arrow-btn" onclick="changeHour(-1)">▼</button>
+            </div>
+            
+            <div class="control-group">
+                <h3>Minuti</h3>
+                <button class="arrow-btn" onclick="changeMinute(1)">▲</button><br>
+                <button class="arrow-btn" onclick="changeMinute(-1)">▼</button>
+            </div>
+        </div>
+        
+        <button onclick="conferma()">Conferma e Continua</button>
+    </div>
 
-  <script type="text/javascript">
-    var clock = document.getElementById('clock');
-    var nextBtn = document.getElementById('nextBtn');
+    <div id="drawPage" class="page">
+        <h1>✏️ Disegna l'orologio</h1>
+        <p>Ora disegna un orologio con i numeri e le lancette che indicano le 11:10</p>
+        
+        <canvas id="canvas" width="500" height="500"></canvas>
+        
+        <button onclick="cancella()">Cancella</button>
+        <button onclick="invia()">Invia e Salva</button>
+        
+        <div class="status" id="status"></div>
+    </div>
 
-    for (var i = 1; i <= 12; i++) {
-      var deg = (i / 12) * 360;
-      var rad = (deg - 90) * Math.PI / 180;
-      var r = 120;
-      var x = 150 + r * Math.cos(rad) - 20;
-      var y = 150 + r * Math.sin(rad) - 15;
+    <script>
+        let hours = 12;
+        let minutes = 0;
+        let drawingData = null;
 
-      var input = document.createElement('input');
-      input.type = "number"; // Non usare "number", per compatibilità tablet
-      input.maxLength = 2;
-      input.className = 'number-input';
-      input.name = 'ora' + i;
-      input.style.left = x + 'px';
-      input.style.top = y + 'px';
-
-      // Permetti solo numeri (0-9)
-      input.onkeypress = function(e) {
-        var key = e.which || e.keyCode;
-        if (key < 48 || key > 57) {
-          e.preventDefault();
+        function updateClock() {
+            const hourHand = document.getElementById('hourHand');
+            const minuteHand = document.getElementById('minuteHand');
+            
+            const hourAngle = (hours % 12) * 30 + (minutes / 60) * 30;
+            const minuteAngle = minutes * 6;
+            
+            hourHand.style.transform = `rotate(${hourAngle}deg)`;
+            minuteHand.style.transform = `rotate(${minuteAngle}deg)`;
+            
+            document.getElementById('timeDisplay').innerText = 
+                String(hours).padStart(2, '0') + ':' + String(minutes).padStart(2, '0');
         }
-      };
 
-      input.oninput = checkInputs;
-
-      clock.appendChild(input);
-    }
-
-    function checkInputs() {
-      nextBtn.disabled = false;
-      nextBtn.classList.add('enabled');
-      /*var inputs = document.getElementsByClassName('number-input');
-      var allFilled = true;        
-      for (var i = 0; i < inputs.length; i++) {
-        if (inputs[i].value.trim() === '') {
-          allFilled = false;
-          break;
+        function changeHour(delta) {
+            hours = (hours + delta + 24) % 24;
+            if (hours === 0) hours = 24;
+            updateClock();
         }
-      }
-      nextBtn.disabled = !allFilled;
-      if (allFilled) {
-        nextBtn.classList.add('enabled');
-      } else {
-        nextBtn.classList.remove('enabled');
-      }*/
-    }
 
-    function prosegui() {
-      var inputs = document.getElementsByClassName('number-input');
-      var query = "";
-      for (var i = 0; i < inputs.length; i++) {
-        var key = "ora" + (i + 1);
-        var value = encodeURIComponent(inputs[i].value.trim());
-        query += key + "=" + value;
-        if (i < inputs.length - 1) query += "&";
-      }
+        function changeMinute(delta) {
+            minutes = (minutes + delta + 60) % 60;
+            updateClock();
+        }
 
-      window.location.href = "minicog_orologio.html?" + query;
+        function conferma() {
+            const clockData = {
+                hours: hours,
+                minutes: minutes,
+                timestamp: new Date().getTime()
+            };
+            
+            document.getElementById('clockPage').style.display = 'none';
+            document.getElementById('drawPage').style.display = 'block';
+            
+            drawingData = clockData;
+        }
 
-      if (typeof QiSession !== "undefined") {
-        QiSession(function(session) {
-          session.service("ALTabletService").then(function(tablet) {
-            tablet.hideWebview();
-          });
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
+        let isDrawing = false;
+        let strokes = [];
+        let currentStroke = [];
+
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = '#000';
+
+        canvas.addEventListener("mousedown", function(e) {
+            isDrawing = true;
+            currentStroke = [];
+            ctx.beginPath();
+            ctx.moveTo(e.offsetX, e.offsetY);
+            currentStroke.push({x: e.offsetX, y: e.offsetY});
         });
-      }
-    }
-  </script>
+
+        canvas.addEventListener("mousemove", function(e) {
+            if (isDrawing) {
+                ctx.lineTo(e.offsetX, e.offsetY);
+                ctx.stroke();
+                currentStroke.push({x: e.offsetX, y: e.offsetY});
+            }
+        });
+
+        canvas.addEventListener("mouseup", function() {
+            if (isDrawing) {
+                isDrawing = false;
+                if (currentStroke.length > 0) {
+                    strokes.push(currentStroke);
+                }
+            }
+        });
+
+        canvas.addEventListener("mouseleave", function() {
+            if (isDrawing) {
+                isDrawing = false;
+                if (currentStroke.length > 0) {
+                    strokes.push(currentStroke);
+                }
+            }
+        });
+
+        function cancella() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            strokes = [];
+            currentStroke = [];
+        }
+
+        function getQueryParam(name) {
+            const query = window.location.search.substring(1);
+            const vars = query.split("&");
+            for (let i = 0; i < vars.length; i++) {
+                const pair = vars[i].split("=");
+                if (decodeURIComponent(pair[0]) === name) {
+                    return decodeURIComponent(pair[1].replace(/\+/g, " "));
+                }
+            }
+            return null;
+        }
+
+        function invia() {
+            if (strokes.length === 0) {
+                document.getElementById("status").innerText = "⚠️ Disegna qualcosa prima di inviare!";
+                return;
+            }
+
+            document.getElementById("status").innerText = "📤 Invio in corso...";
+            
+            const fullData = {
+                clock_set: drawingData,
+                drawing: {
+                    strokes: strokes,
+                    canvas_width: canvas.width,
+                    canvas_height: canvas.height
+                },
+                timestamp: new Date().getTime(),
+                completed: true
+            };
+            
+            const dataJSON = JSON.stringify(fullData);
+            
+            const parametro = getQueryParam("param") || "orologio";
+            const queryString = "data=" + encodeURIComponent(dataJSON);
+            
+            const xhr = new XMLHttpRequest();
+            xhr.open("GET", "minicog_orologio.html?" + queryString, true);
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        document.getElementById("status").innerText = "✅ Test completato!";
+                        setTimeout(function() {
+                            window.location.href = "minicog_orologio.html?" + parametro + "=completato";
+                        }, 1500);
+                    } else {
+                        document.getElementById("status").innerText = "❌ Errore invio. Riprova.";
+                    }
+                }
+            };
+            xhr.send();
+        }
+
+        updateClock();
+    </script>
 </body>
 </html>

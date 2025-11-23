@@ -2,7 +2,7 @@ import qi
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
-from qi_unipa_2_interfaces.msg import Sonar, IMU #,Infrared
+from qi_unipa_2_interfaces.msg import Sonar, IMU 
 from qi_unipa_2_interfaces.srv import GetPosition #type: ignore
 from qi_unipa_2.utils import Utils #type: ignore
 
@@ -34,7 +34,6 @@ class QiUnipa2_reference(Node):
                 'gyro_x': 0.0, 'gyro_y': 0.0, 'gyro_z': 0.0,
                 'angle_x': 0.0, 'angle_y': 0.0
             }
-           # self.mock_infrared = {'left_ir': 0.5, 'right_ir': 0.5}
             self.mock_sonar = {'front_sonar': 0.5, 'back_sonar': 0.5}
             self.mock_position = {'x': 1.0, 'y': 2.0, 'theta': 3.0}
 
@@ -77,14 +76,12 @@ class QiUnipa2_reference(Node):
                     'gyro_x': 0.0, 'gyro_y': 0.0, 'gyro_z': 0.0,
                     'angle_x': 0.0, 'angle_y': 0.0
                 }
-               # self.mock_infrared = {'left_ir': 0.5, 'right_ir': 0.5}
                 self.mock_sonar = {'front_sonar': 0.5, 'back_sonar': 0.5}
                 self.mock_position = {'x': 0.0, 'y': 0.0, 'theta': 0.0}
 
         # Inizializzazione publishers
         self.sonar_pub = self.create_publisher(Sonar, "/pepper/topics/sonar", qos_best_effort_10)
         self.imu_pub = self.create_publisher(IMU, "/pepper/topics/imu", qos_best_effort_10)
-      #  self.infrared_pub = self.create_publisher(Infrared, "/pepper/topics/infrared", qos_best_effort_10)
         
         # Service GetPosition
         self.get_position_srv = self.create_service(GetPosition,'/pepper/services/get_position',self.get_position_callback,qos_profile=qos_reliable_10)
@@ -92,7 +89,6 @@ class QiUnipa2_reference(Node):
         # Timers per sensori continui
         self.timer_imu = self.create_timer(0.1, self.imu_callback)           # 10Hz
         self.timer_sonar = self.create_timer(1.0, self.sonar_callback)       # 1Hz
-       # self.timer_infrared = self.create_timer(1.0, self.infrared_callback) # 1Hz
 
 
     def get_position_callback(self, request, response):
@@ -175,28 +171,6 @@ class QiUnipa2_reference(Node):
             
         except Exception as e:
             self.get_logger().error(f"Errore sonar_callback: {e}")
-
-    '''
-    def infrared_callback(self):
-        """Pubblicazione dati sensori infrarossi a 1Hz"""
-        msg = Infrared()
-        
-        if self.mock_mode:
-            msg.left_ir = self.mock_infrared['left_ir']
-            msg.right_ir = self.mock_infrared['right_ir']
-            self.infrared_pub.publish(msg)
-            return
-        
-        try:
-            # Lettura sensori infrarossi da ALMemory
-            msg.left_ir = self.memory.getData("Device/SubDeviceList/Platform/InfraredSensor/Left/Sensor/Value")
-            msg.right_ir = self.memory.getData("Device/SubDeviceList/Platform/InfraredSensor/Right/Sensor/Value")
-            
-            self.infrared_pub.publish(msg)
-            
-        except Exception as e:
-            self.get_logger().error(f"Errore infrared_callback: {e}")
-    '''
 
     def destroy_node(self):
         """Cleanup quando nodo viene terminato"""

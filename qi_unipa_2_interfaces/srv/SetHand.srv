@@ -1,6 +1,6 @@
 # Request
 string hand
-int32 fun
+int32 fun #0 aperta/1 chiusa
 ---
 # Response
 bool success

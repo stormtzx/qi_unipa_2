@@ -192,78 +192,77 @@ class QiUnipa2_movement(Node):
         angles = request.angles.tolist() if hasattr(request.angles, 'tolist') else list(request.angles)
         speed = request.speed
         
-        # ✅ VALIDAZIONE PARAMETRI
+        #  VALIDAZIONE PARAMETRI
         # 1. Verifica che ci siano nomi e angoli
         if not names or not angles:
-            self.get_logger().error("❌ Errore: nomi o angoli vuoti")
+            self.get_logger().error(" Errore: nomi o angoli vuoti")
             response.success = False
             response.message = "Nomi o angoli vuoti"
             return response
         
         # 2. Verifica lunghezza uguale
         if len(names) != len(angles):
-            self.get_logger().error(f"❌ Lunghezza diversa: {len(names)} nomi vs {len(angles)} angoli")
+            self.get_logger().error(f" Lunghezza diversa: {len(names)} nomi vs {len(angles)} angoli")
             response.success = False
             response.message = f"Lunghezza diversa: {len(names)} nomi, {len(angles)} angoli"
             return response
         
         # 3. Verifica velocità valida
         if speed <= 0.0 or speed > 1.0:
-            self.get_logger().error(f"❌ Velocità non valida: {speed} (deve essere 0 < speed <= 1.0)")
+            self.get_logger().error(f" Velocità non valida: {speed} (deve essere 0 < speed <= 1.0)")
             response.success = False
             response.message = f"Velocità non valida: {speed}"
             return response
         
         # 4. Verifica nomi articolazioni validi
         valid_joints = [
-            "HeadYaw", "HeadPitch",
+            "HeadYaw", "HeadPitch","HipRoll", "HipPitch", "KneePitch"
             "LShoulderPitch", "LShoulderRoll", "LElbowYaw", "LElbowRoll", "LWristYaw",
             "RShoulderPitch", "RShoulderRoll", "RElbowYaw", "RElbowRoll", "RWristYaw",
             "LHand", "RHand",
-            "HipRoll", "HipPitch", "KneePitch"
+            
         ]
         
         for name in names:
             if name not in valid_joints:
-                self.get_logger().error(f"❌ Articolazione non valida: {name}")
+                self.get_logger().error(f" Articolazione non valida: {name}")
                 response.success = False
                 response.message = f"Articolazione '{name}' non valida"
                 return response
-        
         # 5. Verifica range angoli (in radianti)
         # Range approssimativi per sicurezza
         angle_limits = {
-            "HeadYaw": (-2.0857, 2.0857),
-            "HeadPitch": (-0.7068, 0.6371),
-            "LShoulderPitch": (-2.0857, 2.0857),
-            "RShoulderPitch": (-2.0857, 2.0857),
-            "LShoulderRoll": (-0.3142, 1.3265),
-            "RShoulderRoll": (-1.3265, 0.3142),
-            "LElbowYaw": (-2.0857, 2.0857),
-            "RElbowYaw": (-2.0857, 2.0857),
-            "LElbowRoll": (-1.5446, -0.0349),
-            "RElbowRoll": (0.0349, 1.5446),
-            "LWristYaw": (-1.8238, 1.8238),
-            "RWristYaw": (-1.8238, 1.8238),
-            "HipRoll": (-0.5149, 0.5149),
-            "HipPitch": (-1.0385, 1.0385),
-            "KneePitch": (-0.5149, 0.5149),
+            "HeadYaw": (-2.0857, 2.0857), # Rotazione testa: diminuendo-> testa gira a sinistra / aumentando-> testa gira a destra
+            "HeadPitch": (-0.7068, 0.4451), # Inclinazione testa: diminuendo-> testa va in alto / aumentando-> testa va in basso
+            "LShoulderPitch": (-2.0857, 2.0857), # Inclinazione spalla sinistra: diminuendo-> braccio sx va in alto / aumentando-> braccio sx va in basso
+            "RShoulderPitch": (-2.0857, 2.0857), # Inclinazione spalla destra: diminuendo-> braccio dx va in alto / aumentando-> braccio dx va in basso
+            "LShoulderRoll": (0.0087, 1.5620), # Rotazione spalla sinistra: aumentando-> braccio sx si allontana dal corpo (apertura laterale)
+            "RShoulderRoll": (-1.5620, -0.0087), # Rotazione spalla destra: diminuendo-> braccio dx si allontana dal corpo (apertura laterale)
+            "LElbowYaw": (-2.0857, 2.0857), # Rotazione avambraccio sinistro: diminuendo-> rotazione interna / aumentando-> rotazione esterna
+            "RElbowYaw": (-2.0857, 2.0857), # Rotazione avambraccio destro: diminuendo-> rotazione interna / aumentando-> rotazione esterna
+            "LElbowRoll": (-1.5620, -0.0087), # Piegamento gomito sinistro: diminuendo-> gomito si piega (mano verso spalla)
+            "RElbowRoll": (0.0087, 1.5620), # Piegamento gomito destro: aumentando-> gomito si piega (mano verso spalla)
+            "LWristYaw": (-1.8238, 1.8238), # Rotazione polso sinistro: diminuendo-> polso ruota verso interno / aumentando-> polso ruota verso esterno
+            "RWristYaw": (-1.8238, 1.8238), # Rotazione polso destro: diminuendo-> polso ruota verso interno / aumentando-> polso ruota verso esterno
+            "HipRoll": (-0.5149, 0.5149), # Inclinazione laterale bacino: diminuendo-> corpo si inclina a sinistra / aumentando-> corpo si inclina a destra
+            "HipPitch": (-1.0385, 1.0385), # Inclinazione avanti/indietro bacino: diminuendo-> busto si piega indietro / aumentando-> busto si piega in avanti
+            "KneePitch": (-0.5149, 0.5149), # Piegamento ginocchia: diminuendo-> ginocchia si estendono / aumentando-> ginocchia si flettono
         }
-        
+
         for i, (name, angle) in enumerate(zip(names, angles)):
             if name in angle_limits:
                 min_angle, max_angle = angle_limits[name]
                 if angle < min_angle or angle > max_angle:
                     self.get_logger().warn(
-                        f"⚠️ Angolo fuori range per {name}: {angle:.2f} "
+                        f" Angolo fuori range per {name}: {angle:.2f} "
                         f"(range: [{min_angle:.2f}, {max_angle:.2f}])"
                     )
                     # Clamp al range valido
                     angles[i] = max(min_angle, min(angle, max_angle))
                     self.get_logger().warn(f"   → Clamped a: {angles[i]:.2f}")
         
-        # ✅ LOG DETTAGLIATO PRIMA DELLA CHIAMATA
-        self.get_logger().info(f"🤖 set_joint_angles:")
+        #  LOG DETTAGLIATO PRIMA DELLA CHIAMATA
+        self.get_logger().info(f" set_joint_angles:")
         self.get_logger().info(f"   Names: {names}")
         self.get_logger().info(f"   Angles: {[f'{a:.3f}' for a in angles]}")
         self.get_logger().info(f"   Speed: {speed}")
@@ -272,9 +271,9 @@ class QiUnipa2_movement(Node):
             self.motion.angleInterpolationWithSpeed(names, angles, speed)
             response.success = True
             response.message = "Joint movement executed"
-            self.get_logger().info("✅ Movimento completato")
+            self.get_logger().info(" Movimento completato")
         except Exception as e:
-            self.get_logger().error(f"❌ Errore set_joint_angles: {e}")
+            self.get_logger().error(f" Errore set_joint_angles: {e}")
             response.success = False
             response.message = str(e)
         
