@@ -14,7 +14,8 @@ from qi_unipa_2_interfaces.msg import Emotion, Tracker
 from qi_unipa_2_interfaces.action import Navigating
 from geometry_msgs.msg import PointStamped
 import math
-
+import os
+from datetime import datetime
 
 
 # Costanti
@@ -63,7 +64,7 @@ class QiUnipa2_vision(Node):
         if mock_mode:
             self.get_logger().warn("MOCK MODE ATTIVO - Nessuna connessione a Pepper")
             self.session = None
-            self.video_service = None
+            self.vision_device = None
             self.memory = None
             self.tracker = None
             self.motion = None
@@ -71,7 +72,7 @@ class QiUnipa2_vision(Node):
             try:
                 self.get_logger().info(f"Tentativo connessione a Pepper: {ip}:{port}")
                 self.session = utils.session 
-                self.video_service = self.session.service("ALVideoDevice")
+                self.vision_device = self.session.service("ALVideoDevice")
                 self.memory = self.session.service("ALMemory")
                 self.tracker = self.session.service("ALTracker")
                 self.motion = self.session.service("ALMotion")
@@ -81,7 +82,7 @@ class QiUnipa2_vision(Node):
                 self.get_logger().error(f"Impossibile connettersi a Pepper: {e}")
                 self.get_logger().warn("Passaggio automatico a MOCK MODE")
                 self.session = None
-                self.video_service = None
+                self.vision_device = None
                 self.memory = None
                 self.tracker = None
                 self.motion = None
@@ -130,7 +131,7 @@ class QiUnipa2_vision(Node):
     def get_video(self, msg):
         """Topic /get_video: cattura singole immagini (IDENTICO al vecchio get_camera)"""
         
-        if self.video_service is None:
+        if self.vision_device is None:
             # MOCK MODE
             self.get_logger().warn("[MOCK] Cattura video simulata")
             mock_image = np.zeros((480, 640, 3), dtype=np.uint8)
@@ -143,13 +144,13 @@ class QiUnipa2_vision(Node):
             return
         
         # MODALITÀ REALE - ESATTAMENTE COME PRIMA
-        video_client = None  # FIX 4: Inizializza variabile
+        vision_client = None  # FIX 4: Inizializza variabile
         try:
-            video_client = self.video_service.subscribeCamera(
+            vision_client = self.vision_device.subscribeCamera(
                 "Camera", self.camera_index, K_4VGA, K_RGB, 30
             )
             
-            result = self.video_service.getImageRemote(video_client)
+            result = self.vision_device.getImageRemote(vision_client)
             
             if result is None:
                 self.get_logger().info('\n##############\nUnable to acquire image')
@@ -173,84 +174,95 @@ class QiUnipa2_vision(Node):
             self.get_logger().error(f'Error publishing image: {str(e)}')
             
         finally:
-            if video_client is not None and self.video_service is not None:
+            if vision_client is not None and self.vision_device is not None:
                 try:
-                    self.video_service.unsubscribe(video_client)
+                    self.vision_device.unsubscribe(vision_client)
                 except:
                     pass
 
 
 
-    # ========================================
-    # FOTO SINGOLA (Service - NUOVO)
-    # ========================================
-    
+    # ================================================
+    # FOTO SINGOLA (Service - NUOVO, SALVA SU DISCO)
+    # ================================================
     def get_image(self, request, response):
-        """Service /get_image: foto singola con parametri personalizzabili"""
-        
+        """Service /get_image: foto singola salvata su disco con path da variabile d'ambiente"""
+
         camera_index = request.camera_index if request.camera_index in [0, 1] else 0
         resolution = request.resolution if request.resolution in [1, 2, 3, 4] else K_4VGA
-        
-        self.get_logger().info(f"Richiesta foto: camera={camera_index}, res={resolution}")
-        
-        if self.video_service is None:
-            # MOCK MODE
+
+        save_dir = os.environ.get("ROS2_CAPTURES_PATH", "/home/daniele/Scrivania/ros2_ws/src/qi_unipa_2/pepper_captures")
+        os.makedirs(save_dir, exist_ok=True)
+
+        # Usa file_name dalla request, se non presente genera nome di default
+        if hasattr(request, 'file_name') and request.file_name.strip():
+            filename = request.file_name.strip()
+            # Assicurati che il filename termini con .jpg
+            if not filename.lower().endswith('.jpg'):
+                filename += '.jpg'
+        else:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"pepper_photo_{timestamp}_cam{camera_index}.jpg"
+
+        filepath = os.path.join(save_dir, filename)
+
+        self.get_logger().info(f"Richiesta foto: camera={camera_index}, res={resolution}, salvataggio: {filepath}")
+
+        if self.vision_device is None:
             self.get_logger().warn("[MOCK] Foto simulata")
             mock_image = np.zeros((480, 640, 3), dtype=np.uint8)
-            cv2.putText(mock_image, "MOCK PHOTO", (150, 240), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 3)
-            
-            response.image = self.bridge.cv2_to_imgmsg(mock_image, encoding="bgr8")
+            cv2.putText(mock_image, "MOCK PHOTO", (150, 240), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 3)
+            cv2.imwrite(filepath, mock_image)
             response.success = True
-            response.message = "MOCK MODE - Foto simulata"
+            response.message = f"[MOCK] Foto salvata: {filename}"
             return response
-        
-        # MODALITÀ REALE
-        video_client = None
+
+        vision_client = None
         try:
-            video_client = self.video_service.subscribeCamera(
-                "SinglePhotoClient", 
-                camera_index, 
-                resolution, 
-                K_RGB, 
+            vision_client = self.vision_device.subscribeCamera(
+                "SinglePhotoClient",
+                camera_index,
+                resolution,
+                K_RGB,
                 30
             )
-            
-            # Stabilizzazione
-            time.sleep(0.3)
-            
-            result = self.video_service.getImageRemote(video_client)
-            
+
+            time.sleep(0.3)  # Stabilizzazione
+
+            result = self.vision_device.getImageRemote(vision_client)
+
             if result is None:
                 raise RuntimeError("Nessun dato dalla camera")
-            
+
             width = result[0]
             height = result[1]
             channels = result[2]
             image_binary = result[6]
-            
+
             image_array = np.frombuffer(image_binary, dtype=np.uint8).reshape((height, width, channels))
             image_bgr = cv2.cvtColor(image_array, cv2.COLOR_RGB2BGR)
-            
-            response.image = self.bridge.cv2_to_imgmsg(image_bgr, encoding="bgr8")
+
+            cv2.imwrite(filepath, image_bgr)
+
             response.success = True
-            response.message = f"Foto acquisita: {width}x{height}"  # FIX 5: Completa messaggio
-            
-            self.get_logger().info(f"✓ {response.message}")
-            
+            response.message = f"Foto acquisita: {width}x{height}, salvata in {filename}"
+
+            self.get_logger().info(f"✓ Foto salvata: {filepath}")
+
         except Exception as e:
             response.success = False
             response.message = f"Errore: {str(e)}"
             self.get_logger().error(response.message)
-            
+
         finally:
-            if video_client is not None and self.video_service is not None:
+            if vision_client is not None and self.vision_device is not None:
                 try:
-                    self.video_service.unsubscribe(video_client)
+                    self.vision_device.unsubscribe(vision_client)
                 except:
                     pass
-        
+
         return response
+
     
 
 
@@ -291,7 +303,7 @@ class QiUnipa2_vision(Node):
         self.get_logger().info(f"Get coordinates: pixel=({pixel_x}, {pixel_y}), camera={camera_index}")
         
         # MOCK MODE
-        if self.video_service is None:
+        if self.vision_device is None:
             self.get_logger().warn("[MOCK] Coordinate simulate")
             
             response.success = True
@@ -304,10 +316,10 @@ class QiUnipa2_vision(Node):
             return response
         
         # ESECUZIONE REALE
-        video_client = None
+        vision_client = None
         try:
             # Sottoscrizione camera DEPTH (type=11 = kDepthColorSpace)
-            video_client = self.video_service.subscribeCamera(
+            vision_client = self.vision_device.subscribeCamera(
                 "DepthClient",
                 camera_index,
                 K_QVGA,  # Risoluzione depth map
@@ -318,7 +330,7 @@ class QiUnipa2_vision(Node):
             time.sleep(0.2)
             
             # Ottieni depth map
-            depth_data = self.video_service.getImageRemote(video_client)
+            depth_data = self.vision_device.getImageRemote(vision_client)
             
             if depth_data is None:
                 raise RuntimeError("Nessun dato depth dalla camera")
@@ -440,9 +452,9 @@ class QiUnipa2_vision(Node):
             self.get_logger().error(response.message)
             
         finally:
-            if video_client is not None and self.video_service is not None:
+            if vision_client is not None and self.vision_device is not None:
                 try:
-                    self.video_service.unsubscribe(video_client)
+                    self.vision_device.unsubscribe(vision_client)
                 except:
                     pass
         
