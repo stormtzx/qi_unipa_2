@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)  # ← con "__name__" usa il nome del modul
 
 
 class Utils:
-    def __init__(self, ip="192.168.0.102", port=9559, mock_mode=False):
+    def __init__(self, ip="192.168.0.101", port=9559, mock_mode=False):
         self.ip = ip
         self.port = port
         self.mock_mode = mock_mode

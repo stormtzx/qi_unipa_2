@@ -79,12 +79,30 @@ class QiUnipa2_reference(Node):
                 self.mock_sonar = {'front_sonar': 0.5, 'back_sonar': 0.5}
                 self.mock_position = {'x': 0.0, 'y': 0.0, 'theta': 0.0}
 
+        # ========== SOGLIE DI CAMBIO ==========
+        self.imu_accel_threshold = 0.05      # m/s² di cambio
+        self.imu_gyro_threshold = 0.05       # rad/s di cambio
+        self.imu_angle_threshold = 0.05      # rad di cambio
+        self.sonar_threshold = 0.02          # metri di cambio
+        
+        # ========== FLAG PRIMA PUBBLICAZIONE ==========
+        self.imu_published = False
+        self.sonar_published = False
+        
+        # ========== STATO PRECEDENTE PER RILEVARE CAMBI ==========
+        self.prev_imu_state = {
+            'accel_x': 0.0, 'accel_y': 0.0, 'accel_z': 9.81,
+            'gyro_x': 0.0, 'gyro_y': 0.0, 'gyro_z': 0.0,
+            'angle_x': 0.0, 'angle_y': 0.0
+        }
+        self.prev_sonar_state = {'front_sonar': 0.5, 'back_sonar': 0.5}
+
         # Inizializzazione publishers
         self.sonar_pub = self.create_publisher(Sonar, "/pepper/topics/sonar", qos_best_effort_10)
         self.imu_pub = self.create_publisher(IMU, "/pepper/topics/imu", qos_best_effort_10)
         
         # Service GetPosition
-        self.get_position_srv = self.create_service(GetPosition,'/pepper/services/get_position',self.get_position_callback,qos_profile=qos_reliable_10)
+        self.get_position_srv = self.create_service(GetPosition, '/pepper/services/get_position', self.get_position_callback, qos_profile=qos_reliable_10)
 
         # Timers per sensori continui
         self.timer_imu = self.create_timer(0.1, self.imu_callback)           # 10Hz
@@ -117,7 +135,7 @@ class QiUnipa2_reference(Node):
 
 
     def imu_callback(self):
-        """Pubblicazione dati IMU completi a 10Hz"""
+        """Pubblicazione dati IMU - PRIMA VOLTA SEMPRE, POI SOLO SE CAMBIANO"""
         msg = IMU()
         
         if self.mock_mode:
@@ -129,7 +147,34 @@ class QiUnipa2_reference(Node):
             msg.gyro_z = self.mock_imu['gyro_z']
             msg.angle_x = self.mock_imu['angle_x']
             msg.angle_y = self.mock_imu['angle_y']
-            self.imu_pub.publish(msg)
+            
+            #  PUBBLICA SEMPRE ALLA PRIMA VOLTA
+            #  POI SOLO SE CAMBIA OLTRE SOGLIA
+            imu_should_publish = (
+                not self.imu_published or
+                abs(self.prev_imu_state['accel_x'] - msg.accel_x) > self.imu_accel_threshold or
+                abs(self.prev_imu_state['accel_y'] - msg.accel_y) > self.imu_accel_threshold or
+                abs(self.prev_imu_state['accel_z'] - msg.accel_z) > self.imu_accel_threshold or
+                abs(self.prev_imu_state['gyro_x'] - msg.gyro_x) > self.imu_gyro_threshold or
+                abs(self.prev_imu_state['gyro_y'] - msg.gyro_y) > self.imu_gyro_threshold or
+                abs(self.prev_imu_state['gyro_z'] - msg.gyro_z) > self.imu_gyro_threshold or
+                abs(self.prev_imu_state['angle_x'] - msg.angle_x) > self.imu_angle_threshold or
+                abs(self.prev_imu_state['angle_y'] - msg.angle_y) > self.imu_angle_threshold
+            )
+            
+            if imu_should_publish:
+                self.imu_pub.publish(msg)
+                self.imu_published = True
+                self.prev_imu_state = {
+                    'accel_x': msg.accel_x,
+                    'accel_y': msg.accel_y,
+                    'accel_z': msg.accel_z,
+                    'gyro_x': msg.gyro_x,
+                    'gyro_y': msg.gyro_y,
+                    'gyro_z': msg.gyro_z,
+                    'angle_x': msg.angle_x,
+                    'angle_y': msg.angle_y
+                }
             return
         
         try:
@@ -147,30 +192,86 @@ class QiUnipa2_reference(Node):
             msg.angle_x = float(self.memory.getData("Device/SubDeviceList/InertialSensorBase/AngleX/Sensor/Value"))
             msg.angle_y = float(self.memory.getData("Device/SubDeviceList/InertialSensorBase/AngleY/Sensor/Value"))
             
-            self.imu_pub.publish(msg)
+            #  PUBBLICA SEMPRE ALLA PRIMA VOLTA
+            #  POI SOLO SE CAMBIA OLTRE SOGLIA
+            imu_should_publish = (
+                not self.imu_published or
+                abs(self.prev_imu_state['accel_x'] - msg.accel_x) > self.imu_accel_threshold or
+                abs(self.prev_imu_state['accel_y'] - msg.accel_y) > self.imu_accel_threshold or
+                abs(self.prev_imu_state['accel_z'] - msg.accel_z) > self.imu_accel_threshold or
+                abs(self.prev_imu_state['gyro_x'] - msg.gyro_x) > self.imu_gyro_threshold or
+                abs(self.prev_imu_state['gyro_y'] - msg.gyro_y) > self.imu_gyro_threshold or
+                abs(self.prev_imu_state['gyro_z'] - msg.gyro_z) > self.imu_gyro_threshold or
+                abs(self.prev_imu_state['angle_x'] - msg.angle_x) > self.imu_angle_threshold or
+                abs(self.prev_imu_state['angle_y'] - msg.angle_y) > self.imu_angle_threshold
+            )
+            
+            if imu_should_publish:
+                self.imu_pub.publish(msg)
+                self.imu_published = True
+                self.prev_imu_state = {
+                    'accel_x': msg.accel_x,
+                    'accel_y': msg.accel_y,
+                    'accel_z': msg.accel_z,
+                    'gyro_x': msg.gyro_x,
+                    'gyro_y': msg.gyro_y,
+                    'gyro_z': msg.gyro_z,
+                    'angle_x': msg.angle_x,
+                    'angle_y': msg.angle_y
+                }
             
         except Exception as e:
             self.get_logger().error(f"Errore imu_callback: {e}")
 
-    # NB: SONAR è un tipo di hardware ATTIVO e particolare ed ha necessità di essere terminato a fine uso
-    # per questo motivo è gestito in destroy_node() a chiusura del nodo
+
     def sonar_callback(self):
-        """Pubblicazione dati sonar a 1Hz"""
+        """Pubblicazione dati sonar - PRIMA VOLTA SEMPRE, POI SOLO SE CAMBIANO"""
         msg = Sonar()
         
         if self.mock_mode:
             msg.front_sonar = self.mock_sonar['front_sonar']
             msg.back_sonar = self.mock_sonar['back_sonar']
-            self.sonar_pub.publish(msg)
+            
+            #  PUBBLICA SEMPRE ALLA PRIMA VOLTA
+            #  POI SOLO SE CAMBIA OLTRE SOGLIA
+            sonar_should_publish = (
+                not self.sonar_published or
+                abs(self.prev_sonar_state['front_sonar'] - msg.front_sonar) > self.sonar_threshold or
+                abs(self.prev_sonar_state['back_sonar'] - msg.back_sonar) > self.sonar_threshold
+            )
+            
+            if sonar_should_publish:
+                self.sonar_pub.publish(msg)
+                self.sonar_published = True
+                self.prev_sonar_state = {
+                    'front_sonar': msg.front_sonar,
+                    'back_sonar': msg.back_sonar
+                }
             return
         
         try:
-            msg.front_sonar = self.memory.getData("Device/SubDeviceList/Platform/Front/Sonar/Sensor/Value")
-            msg.back_sonar = self.memory.getData("Device/SubDeviceList/Platform/Back/Sonar/Sensor/Value")
-            self.sonar_pub.publish(msg)
+            msg.front_sonar = float(self.memory.getData("Device/SubDeviceList/Platform/Front/Sonar/Sensor/Value"))
+            msg.back_sonar = float(self.memory.getData("Device/SubDeviceList/Platform/Back/Sonar/Sensor/Value"))
+            
+            #  PUBBLICA SEMPRE ALLA PRIMA VOLTA
+            #  POI SOLO SE CAMBIA OLTRE SOGLIA
+            sonar_should_publish = (
+                not self.sonar_published or
+                abs(self.prev_sonar_state['front_sonar'] - msg.front_sonar) > self.sonar_threshold or
+                abs(self.prev_sonar_state['back_sonar'] - msg.back_sonar) > self.sonar_threshold
+            )
+            
+            if sonar_should_publish:
+                self.sonar_pub.publish(msg)
+                self.sonar_published = True
+                self.prev_sonar_state = {
+                    'front_sonar': msg.front_sonar,
+                    'back_sonar': msg.back_sonar
+                }
             
         except Exception as e:
             self.get_logger().error(f"Errore sonar_callback: {e}")
+
 
     def destroy_node(self):
         """Cleanup quando nodo viene terminato"""

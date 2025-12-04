@@ -26,6 +26,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/Battery.msg"
   "msg/Infrared.msg"
   "msg/IMU.msg"
+  "msg/UserData.msg"
+  "msg/TestData.msg"
   "srv/SetState.srv"
   "srv/SetHand.srv"
   "srv/SetPosture.srv"

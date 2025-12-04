@@ -307,11 +307,11 @@
             <div class="checkbox-text">✅ Nessuna</div>
           </div>
           <div class="checkbox-item" onclick="toggleCheckbox('intolleranze-lattosio')">
-            <input type="checkbox" id="intolleranze-lattosio" name="intolleranze" value="lattosio">
+            <input type="checkbox" id="intolleranze-lattosio" name="intolleranze" value="Lattosio">
             <div class="checkbox-text">🍦 Lattosio</div>
           </div>
           <div class="checkbox-item" onclick="toggleCheckbox('intolleranze-glutine')">
-            <input type="checkbox" id="intolleranze-glutine" name="intolleranze" value="glutine">
+            <input type="checkbox" id="intolleranze-glutine" name="intolleranze" value="Glutine">
             <div class="checkbox-text">🌾 Glutine</div>
           </div>
         </div>
@@ -324,6 +324,9 @@
   </div>
 
   <script>
+
+
+
   // Compatibilità: trova il genitore con classe "checkbox-item"
   function getCheckboxItem(element) {
     while (element && element !== document) {
@@ -485,70 +488,86 @@
       }
     }
   }
-
+  
   function inviaDati() {
-    var nome = document.getElementById('nome').value.trim();
-    var cognome = document.getElementById('cognome').value.trim();
-    var peso = document.getElementById('peso').value;
-    var altezza = document.getElementById('altezza').value;
+  var nome = document.getElementById('nome').value.trim();
+  var cognome = document.getElementById('cognome').value.trim();
+  var peso = document.getElementById('peso').value;
+  var altezza = document.getElementById('altezza').value;
 
-    if (!nome) {
-      showMessage('error', '❌ Per favore inserisci il nome');
-      return;
-    }
-    if (!cognome) {
-      showMessage('error', '❌ Per favore inserisci il cognome');
-      return;
-    }
-    if (!peso || peso <= 0) {
-      showMessage('error', '❌ Per favore inserisci un peso valido');
-      return;
-    }
-    if (!altezza || altezza <= 0) {
-      showMessage('error', '❌ Per favore inserisci un\'altezza valida');
-      return;
-    }
-
-    var patologie = [];
-    var intolleranze = [];
-
-    var patologieChecks = document.querySelectorAll('input[name="patologie"]:checked');
-    for (var i = 0; i < patologieChecks.length; i++) {
-      patologie.push(patologieChecks[i].value);
-    }
-
-    var intolleranzeChecks = document.querySelectorAll('input[name="intolleranze"]:checked');
-    for (var i = 0; i < intolleranzeChecks.length; i++) {
-      intolleranze.push(intolleranzeChecks[i].value);
-    }
-
-    var queryString = "nome=" + encodeURIComponent(nome) +
-      "&cognome=" + encodeURIComponent(cognome) +
-      "&peso=" + peso +
-      "&altezza=" + altezza +
-      "&patologie=" + encodeURIComponent(patologie.join(',')) +
-      "&intolleranze=" + encodeURIComponent(intolleranze.join(','));
-
-    showMessage('success', "✅ Registrazione completata!\n👤 " + nome + " " + cognome + "\n⚖️ " + peso + " kg - 📏 " + altezza + " cm");
-
-    setTimeout(function () {
-      resetForm();
-    }, 3000);
-
-    var xhr = new XMLHttpRequest();
-    xhr.open("GET", "http://localhost:8080/registrazione.html?" + queryString, true);
-    xhr.onreadystatechange = function () {
-      if (xhr.readyState === 4) {
-        if (xhr.status === 200) {
-          showMessage('success', "✅ Registrazione completata!\n👤 " + nome + " " + cognome);
-          setTimeout(resetForm, 3000);
-        } else {
-          showMessage('error', "❌ Errore durante l'invio dei dati. Riprova più tardi.");
-        }
-      }
-    };
-    xhr.send();
+  // Validazioni
+  if (!nome) {
+    showMessage('error', '❌ Per favore inserisci il nome');
+    return;
   }
+  if (!cognome) {
+    showMessage('error', '❌ Per favore inserisci il cognome');
+    return;
+  }
+  if (!peso || peso <= 0) {
+    showMessage('error', '❌ Per favore inserisci un peso valido');
+    return;
+  }
+  if (!altezza || altezza <= 0) {
+    showMessage('error', '❌ Per favore inserisci un\'altezza valida');
+    return;
+  }
+
+  // Raccogli patologie e intolleranze
+  var patologie = [];
+  var intolleranze = [];
+  
+  var patologieChecks = document.querySelectorAll('input[name="patologie"]:checked');
+  for (var i = 0; i < patologieChecks.length; i++) {
+    patologie.push(patologieChecks[i].value);
+  }
+  
+  var intolleranzeChecks = document.querySelectorAll('input[name="intolleranze"]:checked');
+  for (var i = 0; i < intolleranzeChecks.length; i++) {
+    intolleranze.push(intolleranzeChecks[i].value);
+  }
+
+  // ✅ CREA OGGETTO JSON CON form_type
+  var formData = {
+    formtype: "registrazione", 
+    nome: nome,
+    cognome: cognome,
+    peso: parseFloat(peso),
+    altezza: parseFloat(altezza),
+    patologie: patologie.join(',') || 'Nessuna',
+    intolleranze: intolleranze.join(',') || 'Nessuna'
+  };
+
+  console.log('📤 Invio dati:', formData);  // ✅ Debug
+
+
+  fetch('http://localhost:8080/submit_form', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(formData)
+  })
+  .then(function(response) {
+    return response.json();  // ✅ Leggi JSON
+  })
+  .then(function(data) {
+    if (data.status === 'success') {
+      // ✅ Redirect se c'è redirect_url
+      if (data.redirect_url) {
+        window.location.href = data.redirect_url;
+      } else {
+        showMessage('success', "✅ Dati inviati con successo!");
+      }
+    } else {
+      showMessage('error', "❌ Errore: " + data.message);
+    }
+  })
+  .catch(function(error) {
+    console.error('❌ Errore:', error);
+    showMessage('error', "❌ Errore di rete.");
+  });
+
+}
+
 
   document.addEventListener('DOMContentLoaded', function () {
     getCheckboxItem(document.getElementById('patologie-nessuna')).className = 'checkbox-item';

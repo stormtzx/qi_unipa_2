@@ -216,7 +216,7 @@ class QiUnipa2_movement(Node):
         
         # 4. Verifica nomi articolazioni validi
         valid_joints = [
-            "HeadYaw", "HeadPitch","HipRoll", "HipPitch", "KneePitch"
+            "HeadYaw", "HeadPitch","HipRoll", "HipPitch", "KneePitch",
             "LShoulderPitch", "LShoulderRoll", "LElbowYaw", "LElbowRoll", "LWristYaw",
             "RShoulderPitch", "RShoulderRoll", "RElbowYaw", "RElbowRoll", "RWristYaw",
             "LHand", "RHand",
@@ -224,8 +224,8 @@ class QiUnipa2_movement(Node):
         ]
         
         for name in names:
-            if name not in valid_joints:
-                self.get_logger().error(f" Articolazione non valida: {name}")
+            if name.strip() not in valid_joints:
+                self.get_logger().error(f"Articolazione non valida: {name}")
                 response.success = False
                 response.message = f"Articolazione '{name}' non valida"
                 return response
@@ -355,25 +355,26 @@ class QiUnipa2_movement(Node):
         animation_type = request.animation_type
         
         try:
-            if animation_type == "dancing":
+            if animation_type in ["dance", "dancing"]:
                 self._dancing(request.repetitions or 3)
-            elif animation_type == "waving":
+            elif animation_type in ["wave", "waving"]:
                 self._waving(request.side or "right")
-            elif animation_type == "nodding":
+            elif animation_type in ["nod", "nodding"]:
                 self._nodding(request.repetitions or 3)
-            elif animation_type == "shaking_head":
+            elif animation_type in ["shake", "shaking_head", "shake_head"]:
                 self._shaking_head(request.repetitions or 3)
-            elif animation_type == "celebrating":
+            elif animation_type in ["celebrate", "celebrating", "thumbs_up"]:
+                # puoi scegliere se mappare thumbs_up su celebrate o su un gesto specifico
                 self._celebrating()
-            elif animation_type == "pointing":
+            elif animation_type in ["point", "pointing"]:
                 self._pointing(request.direction or "front")
-            elif animation_type == "shrugging":
+            elif animation_type in ["shrug", "shrugging"]:
                 self._shrugging()
-            elif animation_type == "bowing":
+            elif animation_type in ["bow", "bowing"]:
                 self._bowing()
-            elif animation_type == "thinking":
+            elif animation_type in ["think", "thinking"]:
                 self._thinking(request.duration or 3.0)
-            elif animation_type == "clapping":
+            elif animation_type in ["clap", "clapping"]:
                 self._clapping(request.repetitions or 5)
             else:
                 response.success = False
@@ -599,8 +600,6 @@ class QiUnipa2_movement(Node):
         
         self.get_logger().info(f"Navigating to ({target_x}, {target_y}), use_map={use_map}")
 
-
-
         # Feedback iniziale
         feedback = Navigating.Feedback()
         feedback.status = "planning"
@@ -608,8 +607,6 @@ class QiUnipa2_movement(Node):
         feedback.current_y = 0.0
         feedback.distance_remaining = 0.0
         goal_handle.publish_feedback(feedback)
-
-
 
         # ===== MOCK MODE =====
         if self.motion is None or self.navigation is None:
@@ -630,8 +627,6 @@ class QiUnipa2_movement(Node):
             result.final_y = target_y
             result.distance_to_target = 0.0
             return result
-
-
 
         # ===== ESECUZIONE REALE =====
         try:
@@ -728,9 +723,6 @@ class QiUnipa2_movement(Node):
             return result
 
 
-
-
-            
         except Exception as e:
             self.get_logger().error(f"Errore: {e}")
             goal_handle.abort()

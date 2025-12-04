@@ -6,35 +6,43 @@ import os
 import time
 import logging
 import queue
-import socket  # ← Aggiungi questo
+import socket
 import urllib.parse
 import subprocess
+import json
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from socketserver import ThreadingMixIn
-from qi_unipa_2.utils import Utils  # ← Import funzione separata
+from qi_unipa_2.utils import Utils
+
 
 
 # ====================
 # CONFIGURAZIONE
 # ====================
 
+
 DEFAULT_PORT = 8080
+
 
 # Setup logging
 logger = logging.getLogger(__name__)
 
 
+
 # ====================
 # QUEUE GLOBALI
 # ====================
-# Note: Queste queue sono condivise tra HTTP server thread e nodo ROS2
+
 
 request_queue_user = queue.Queue(maxsize=200)
 test_queue = queue.Queue(maxsize=200)
 
+
+
 # ====================
 # HTTP HANDLER
 # ====================
+
 
 class FormHTTPHandler(BaseHTTPRequestHandler):
     """
@@ -42,7 +50,6 @@ class FormHTTPHandler(BaseHTTPRequestHandler):
     Processa dati form e li inserisce in queue per nodo ROS2.
     """
     
-    # Path HTML pages (impostato dal server)
     html_dir = None
     
     def __init__(self, *args, **kwargs):
@@ -54,6 +61,8 @@ class FormHTTPHandler(BaseHTTPRequestHandler):
         if hasattr(self.request, 'settimeout'):
             self.request.settimeout(30)
     
+
+
     def do_GET(self):
         """Gestisce richieste GET con logging dettagliato"""
         client_addr = self.client_address[0] if self.client_address else "unknown"
@@ -66,28 +75,47 @@ class FormHTTPHandler(BaseHTTPRequestHandler):
             
             logger.info(f"[{client_addr}] GET {path} - Query: {bool(query)}")
             
-            # Mappatura handler per pagine specifiche
+            # ✅ Path handlers - TUTTE LE PAGINE
             path_handlers = {
-                "registrazione.html": self._handle_registrazione,
+                # Registrazione
+                "registrazione.html": self._handle_simple_page,
+                "registrazione_completata.html": self._handle_simple_page,
+                
+                # MiniCog
+                "test_minicog_parte1.html": self._handle_simple_page,
+                "test_minicog_parte2.html": self._handle_simple_page,
+                "test_minicog_parte3.html": self._handle_simple_page,
+                "test_minicog_parte4.html": self._handle_simple_page,
+                "test_minicog_completato.html": self._handle_final_page,
+                
+                # Mobilità
+                "test_mobilita_parte1.html": self._handle_simple_page,
+                "test_mobilita_parte2.html": self._handle_simple_page,
+                "test_mobilita_parte3.html": self._handle_simple_page,
+                "test_mobilita_parte4.html": self._handle_simple_page,
+                "test_mobilita_parte5.html": self._handle_simple_page,
+                "test_mobilita_completato.html": self._handle_final_page,
+                
+                # MUST
+                "test_MUST_parte1.html": self._handle_simple_page,
+                "test_MUST_parte2.html": self._handle_simple_page,
+                "test_MUST_parte3.html": self._handle_simple_page,
+                "test_MUST_completato.html": self._handle_final_page,
+                
+                # Pagine di stato
                 "attivo.html": self._handle_simple_page,
                 "disattivo.html": self._handle_simple_page,
-                "vuoi_effettuare_il_test.html": self._handle_test_page,
-                "minicog_orologio.html": self._handle_test_page,
-                "minicog_parole.html": self._handle_test_page,
-                "minicog_parole_verifica.html": self._handle_test_page,
-                "si_no.html": self._handle_test_page,
-                "autovalutazione_3_opzioni.html": self._handle_test_page,
-                "autovalutazione_5_opzioni.html": self._handle_test_page,
-                "dati_must.html": self._handle_test_page,
-                "thinking.html": self._handle_simple_page
+                "thinking.html": self._handle_simple_page,
             }
             
             if path in path_handlers:
                 file_path = os.path.join(self.html_dir, path)
                 if os.path.exists(file_path):
-                    # Processa query PRIMA di servire file
-                    if query:
-                        success = path_handlers[path](path, query)
+                    handler = path_handlers[path]
+                    
+                    # ✅ Chiama handler SOLO se ha query E non è final_page
+                    if query and handler != self._handle_final_page:
+                        success = handler(path, query)
                         if not success:
                             logger.warning(f"[{client_addr}] Errore processamento query {path}")
                     
@@ -111,59 +139,201 @@ class FormHTTPHandler(BaseHTTPRequestHandler):
                 self.send_error(500, "Errore interno del server")
             except:
                 pass
-    
-    def _handle_registrazione(self, path, query):
-        """Gestisce form registrazione utente"""
-        try:
-            logger.info(f"Processando registrazione: {query}")
-            
-            # Validazione campi obbligatori
-            required_fields = ['nome', 'cognome']
-            for field in required_fields:
-                if field not in query or not query[field][0].strip():
-                    logger.warning(f"Campo mancante: {field}")
-                    return False
-            
-            # Inserisci in queue con retry
-            return self._queue_put_retry(request_queue_user, query, "registrazione")
-        
-        except Exception as e:
-            logger.error(f"Errore in _handle_registrazione: {e}")
-            return False
-    
+
+
 
     def _handle_simple_page(self, path, query):
         """Gestisce pagine semplici senza form"""
+        if query:
+            logger.warning(f"⚠️ Query su pagina semplice {path} (ignorata): {query}")
         return True
-    
 
-    def _handle_test_page(self, path, query):
-        """Gestisce form test cognitivi"""
-        try:
-            logger.info(f"Processando test da {path}: {query}")
-            return self._queue_put_retry(test_queue, query, "test")
-        except Exception as e:
-            logger.error(f"Errore in _handle_test_page: {e}")
-            return False
-    
 
+    def _handle_final_page(self, path, query):
+        """Gestisce pagine finali di test (binari morti - no redirect)"""
+        if query:
+            logger.warning(f"⚠️ Query su pagina finale {path} (ignorata - binario morto): {query}")
+        logger.info(f"🏁 Pagina finale caricata: {path}")
+        return True
+
+
+
+    def do_POST(self):
+        """Gestisce richieste POST per /submit_form con nuova struttura FormData"""
+        client_addr = self.client_address[0] if self.client_address else "unknown"
+        
+        if self.path == '/submit_form':
+            try:
+                content_length = int(self.headers.get('Content-Length', 0))
+                post_data = self.rfile.read(content_length)
+                form_data = json.loads(post_data.decode('utf-8'))
+                
+                logger.info(f"[{client_addr}] 📥 POST /submit_form")
+                logger.info(f"[{client_addr}] 📦 form_data ricevuti: {form_data}")  # ← DEBUG 1
+                
+                formtype = form_data.get('formtype', 'unknown')
+                logger.info(f"[{client_addr}] 🔍 formtype estratto: '{formtype}'")  # ← DEBUG 2
+                
+                # ========== ROUTING DATI IN QUEUE ==========
+                
+                success = False
+                
+                # REGISTRAZIONE → user queue
+                if formtype == 'registrazione':
+                    success = self._queue_put_retry(request_queue_user, form_data, "registrazione")
+                    logger.info(f"[{client_addr}] ✅ REGISTRAZIONE → queue, success={success}")  # ← DEBUG 3
+                
+                # MINICOG (tutti) → test queue
+                elif formtype.startswith('minicog_'):
+                    success = self._queue_put_retry(test_queue, form_data, f"minicog_{formtype}")
+                    logger.info(f"[{client_addr}] ✅ MINICOG → queue, success={success}")  # ← DEBUG 3
+                
+                # MOBILITÀ (tutti) → test queue
+                elif formtype.startswith('mobilita_'):
+                    success = self._queue_put_retry(test_queue, form_data, f"mobilita_{formtype}")
+                    logger.info(f"[{client_addr}] ✅ MOBILITA → queue, success={success}")  # ← DEBUG 3
+                
+                # MUST (tutti) → test queue
+                elif formtype.startswith('must_'):
+                    success = self._queue_put_retry(test_queue, form_data, f"must_{formtype}")
+                    logger.info(f"[{client_addr}] ✅ MUST → queue, success={success}")  # ← DEBUG 3
+                
+                # SCONOSCIUTO → user queue
+                else:
+                    logger.warning(f"[{client_addr}] ⚠️ Formtype SCONOSCIUTO: '{formtype}'")
+                    success = self._queue_put_retry(request_queue_user, form_data, "sconosciuto")
+                    logger.info(f"[{client_addr}] ✅ SCONOSCIUTO → queue, success={success}")  # ← DEBUG 3
+                
+                if success:
+                    # ✅ CALCOLA REDIRECT URL
+                    redirect_url = self._get_redirect_url(formtype)
+                    logger.info(f"[{client_addr}] 🔗 redirect_url calcolato: '{redirect_url}'")  # ← DEBUG 4
+                    
+                    # Prepara response
+                    response = {
+                        "status": "success",
+                        "message": "Data received",
+                        "redirect_url": redirect_url  
+                    }
+                    logger.info(f"[{client_addr}] 📤 Response pronto: {response}")  # ← DEBUG 5
+                    
+                    # Invia response
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.send_header('Connection', 'close')
+                    self.end_headers()
+                    
+                    response_json = json.dumps(response)
+                    self.wfile.write(response_json.encode())
+                    logger.info(f"[{client_addr}] ✅ Response inviato ({len(response_json)} bytes)")  # ← DEBUG 6
+                    
+                    if redirect_url:
+                        logger.info(f"[{client_addr}] ✅ Form OK - Redirect a: {redirect_url}")
+                    else:
+                        logger.info(f"[{client_addr}] ✅ Form OK - Binario morto (no redirect)")
+                else:
+                    logger.error(f"[{client_addr}] ❌ success=False! Nessun put_retry ha funzionato!")  # ← DEBUG 7
+                    raise Exception("Queue full - nessun retry ha avuto successo")
+                    
+            except json.JSONDecodeError as e:
+                logger.error(f"[{client_addr}] ❌ Errore JSON decode: {e}")
+                self.send_response(400)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                error_response = {"status": "error", "message": "Invalid JSON"}
+                self.wfile.write(json.dumps(error_response).encode())
+                logger.info(f"[{client_addr}] 📤 Errore response inviato (400)")
+            
+            except Exception as e:
+                logger.error(f"[{client_addr}] ❌ Errore POST handler: {e}", exc_info=True)
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                error_response = {"status": "error", "message": str(e)}
+                error_json = json.dumps(error_response)
+                self.wfile.write(error_json.encode())
+                logger.info(f"[{client_addr}] 📤 Errore response inviato (500): {str(e)}")
+        else:
+            logger.warning(f"[{client_addr}] POST path non riconosciuto: {self.path}")
+            self.send_error(404, "Endpoint non trovato")
+
+
+
+    def _get_redirect_url(self, formtype):
+        """
+        Determina URL di redirect in base al formtype.
+        Ritorna None per pagine finali (binari morti).
+        """
+        # Mappatura formtype → pagina successiva
+        redirect_map = {
+            # Registrazione
+            "registrazione": "registrazione_completata.html",
+            
+            # MiniCog
+            "minicog_parte1": "test_minicog_parte2.html",
+            "minicog_parte2": "test_minicog_parte3.html",
+            "minicog_parte3": "test_minicog_parte4.html",
+            "minicog_parte4": "test_minicog_completato.html",
+            
+            # Mobilità
+            "mobilita_test1": "test_mobilita_parte2.html",
+            "mobilita_test2": "test_mobilita_parte3.html",
+            "mobilita_test3": "test_mobilita_parte4.html",
+            "mobilita_test4": "test_mobilita_parte5.html",
+            "mobilita_test5": "test_mobilita_completato.html",
+            
+            # MUST
+            "must_parte1": "test_MUST_parte2.html",
+            "must_parte2": "test_MUST_parte3.html",
+            "must_parte3": "test_MUST_completato.html",
+            "must_complete": "test_MUST_completato.html",
+            
+            # Pagine finali (binari morti) - no redirect
+            "minicog_complete": None,
+            "mobilita_complete": None,
+            "must_complete": None,
+        }
+        
+        next_page = redirect_map.get(formtype)
+        
+        if next_page is not None:
+            return f"http://localhost:8080/{next_page}"  # ✅ URL completo
+        elif next_page is None and formtype in redirect_map:
+            # Consapevolmente None (pagina finale)
+            logger.info(f"🏁 Binario morto per formtype: {formtype}")
+            return None
+        else:
+            logger.warning(f"⚠️ Nessun mapping per formtype: {formtype}")
+            return None
+
+
+    
+    def do_OPTIONS(self):
+        """Gestisce preflight CORS"""
+        self.send_response(200)
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.end_headers()
+    
+    
     def _queue_put_retry(self, target_queue, data, queue_name, max_retries=3):
         """Helper per inserimento in queue con retry"""
         for attempt in range(max_retries):
             try:
                 target_queue.put(data, timeout=1.0)
-                logger.info(f"Query {queue_name} aggiunta (tentativo {attempt + 1})")
+                logger.info(f"📤 Dati {queue_name} aggiunti alla queue (tentativo {attempt + 1})")
                 return True
             except queue.Full:
                 if attempt < max_retries - 1:
-                    logger.warning(f"Coda {queue_name} piena, retry {attempt + 1}")
+                    logger.warning(f"⚠️ Queue {queue_name} piena, retry {attempt + 1}")
                     time.sleep(0.1)
                 else:
-                    logger.error(f"Coda {queue_name} piena dopo {max_retries} tentativi")
+                    logger.error(f"❌ Queue {queue_name} piena dopo {max_retries} tentativi")
                     return False
         return False
     
-
     def _serve_file(self, file_path, client_addr="unknown"):
         """Serve file HTML/CSS/JS"""
         try:
@@ -206,7 +376,7 @@ class FormHTTPHandler(BaseHTTPRequestHandler):
                     break
             
             if bytes_sent == len(content):
-                logger.info(f"[{client_addr}] File servito: {os.path.basename(file_path)}")
+                logger.info(f"[{client_addr}] File servito: {os.path.basename(file_path)} ({len(content)} bytes)")
         
         except IOError as e:
             logger.error(f"[{client_addr}] Errore I/O: {e}")
@@ -231,6 +401,7 @@ class FormHTTPHandler(BaseHTTPRequestHandler):
 # HTTP SERVER
 # ====================
 
+
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
     """Server HTTP multi-thread con configurazioni migliorate"""
     
@@ -254,9 +425,11 @@ class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
                 pass
 
 
+
 # ====================
 # SERVER MANAGER
 # ====================
+
 
 class HTTPServerManager:
     """
@@ -322,7 +495,7 @@ class HTTPServerManager:
                         self._kill_port_process()
                         time.sleep(retry_delay)
                         retry_delay *= 2
-                        self.server = None  # Reset per creare nuovo server
+                        self.server = None
                     else:
                         logger.error(f"Impossibile avviare server dopo {max_retries} tentativi")
                         raise

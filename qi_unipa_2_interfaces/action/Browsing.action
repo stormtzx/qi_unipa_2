@@ -1,8 +1,8 @@
 # Goal
 string html_page
 bool use_tablet
-bool wait_for_data     # NEW: se true, aspetta dati form prima di completare
-float32 timeout        # NEW: timeout in secondi (default 120.0)
+bool wait_for_data     # DEPRECATO: se true, aspetta dati form prima di completare
+float32 timeout        # DEPRECATO: timeout in secondi (default 120.0)
 ---
 # Result
 bool success

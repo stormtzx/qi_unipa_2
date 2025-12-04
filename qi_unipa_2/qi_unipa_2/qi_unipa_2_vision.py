@@ -197,7 +197,6 @@ class QiUnipa2_vision(Node):
         # Usa file_name dalla request, se non presente genera nome di default
         if hasattr(request, 'file_name') and request.file_name.strip():
             filename = request.file_name.strip()
-            # Assicurati che il filename termini con .jpg
             if not filename.lower().endswith('.jpg'):
                 filename += '.jpg'
         else:
@@ -227,7 +226,7 @@ class QiUnipa2_vision(Node):
                 30
             )
 
-            time.sleep(0.3)  # Stabilizzazione
+            time.sleep(0.3)
 
             result = self.vision_device.getImageRemote(vision_client)
 
@@ -239,10 +238,13 @@ class QiUnipa2_vision(Node):
             channels = result[2]
             image_binary = result[6]
 
+            # Reshape dell'array
             image_array = np.frombuffer(image_binary, dtype=np.uint8).reshape((height, width, channels))
-            image_bgr = cv2.cvtColor(image_array, cv2.COLOR_RGB2BGR)
-
-            cv2.imwrite(filepath, image_bgr)
+            
+            # Rotazione 180°
+            #image_corrected = cv2.rotate(image_array, cv2.ROTATE_180)
+            
+            cv2.imwrite(filepath, image_array)
 
             response.success = True
             response.message = f"Foto acquisita: {width}x{height}, salvata in {filename}"
@@ -263,7 +265,6 @@ class QiUnipa2_vision(Node):
 
         return response
 
-    
 
 
     def publish_emotion(self):
