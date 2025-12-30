@@ -19,11 +19,13 @@ class QiUnipa2_audio(Node):
 
         # Parametri
         self.declare_parameter('mock_mode', False)
+        self.declare_parameter('mock_audio_transcription', True)
         self.declare_parameter('ip', '192.168.0.102')
         self.declare_parameter('port', 9559)
         self.declare_parameter('openai_api_key', '')
 
         mock_mode = self.get_parameter('mock_mode').get_parameter_value().bool_value
+        mock_audio_transcription = self.get_parameter('mock_audio_transcription').get_parameter_value().bool_value
         ip = self.get_parameter('ip').get_parameter_value().string_value
         port = self.get_parameter('port').get_parameter_value().integer_value
         openai_api_key = self.get_parameter('openai_api_key').get_parameter_value().string_value
@@ -36,8 +38,9 @@ class QiUnipa2_audio(Node):
         self.VALID_AUDIO_SOURCES = ["pepper", "pc", "external"]
         self.DEFAULT_AUDIO_SOURCE = "pc"
 
-        # Caricamento OpenAI Whisper API client
-        if not mock_mode:
+
+        # CARICA WHISPER Se è la modalità reale oppure se è nella modalità mock ma con mock_audio_transcription=True
+        if not mock_mode or mock_audio_transcription:
             try:
                 from openai import OpenAI
 
@@ -45,15 +48,21 @@ class QiUnipa2_audio(Node):
 
                 if not api_key:
                     self.get_logger().error("ERRORE CRITICO: OpenAI API key non trovata!")
-                    raise ValueError("OpenAI API key non trovata.")
+                    raise ValueError("OpenAI API key non trovata")
 
                 self.openai_client = OpenAI(api_key=api_key)
-                self.get_logger().info("OpenAI Whisper API caricato con successo")
+                
+                if mock_mode:
+                    self.get_logger().warn("OpenAI Whisper API caricato (MOCK MODE CON TRASCRIZIONE ATTIVA)")
+                else:
+                    self.get_logger().info("OpenAI Whisper API caricato con successo")
+                    
             except Exception as e:
-                self.get_logger().error(f"ERRORE CRITICO: {e}")
+                self.get_logger().error(f"ERRORE CRITICO caricamento Whisper: {e}")
                 raise
         else:
-            self.get_logger().warn("MODALITA MOCK ATTIVA")
+            self.get_logger().warn("Audio transcription DISABILITATA (MOCK MODE senza trascrizione)")
+
 
         # Publisher per trascrizione
         self.transcription_pub = self.create_publisher(String, '/pepper/topics/transcription', 10)
@@ -62,7 +71,7 @@ class QiUnipa2_audio(Node):
         self._action_server = ActionServer(
             self,
             Listening,
-            '/pepper/actions/listening',  # NOME CORRETTO
+            '/pepper/actions/listening',
             execute_callback=self.listening_execute_callback,
             goal_callback=self.listening_goal_callback,
             cancel_callback=self.listening_cancel_callback
@@ -75,7 +84,10 @@ class QiUnipa2_audio(Node):
 
         # Connessione a Pepper
         if mock_mode:
-            self.get_logger().warn("MOCK MODE: Servizi Pepper non inizializzati")
+            if mock_audio_transcription:
+                self.get_logger().warn(f"Nodo AUDIO attivo in MOCK MODE CON TRASCRIZIONE ATTIVA (default audio source: {self.DEFAULT_AUDIO_SOURCE})")
+            else:
+                self.get_logger().warn(f"Nodo AUDIO attivo in MOCK MODE")
             self.session = None
             self.memory = None
             self.audio_recorder = None
@@ -90,14 +102,17 @@ class QiUnipa2_audio(Node):
                 self.sound_detect_service = self.session.service("ALSoundDetection")
                 self.sound_detect_service.setParameter("Sensitivity", 0.85)
                 self.get_logger().info("Servizi audio Pepper pronti")
+                self.get_logger().info(f"Nodo AUDIO attivo e connesso a Pepper! (default audio source: {self.DEFAULT_AUDIO_SOURCE})")
             except Exception as e:
-                self.get_logger().error(f"Errore connessione Pepper: {e}")
-                self.session = None
-                self.memory = None
-                self.audio_recorder = None
-                self.sound_detect_service = None
+                self.get_logger().error(f"Impossibile connettersi a Pepper: {e}")
+                self.get_logger().error("TERMINAZIONE FORZATA - Connessione fallita")
+                # Solleva eccezione per terminare il nodo
+                raise RuntimeError(
+                    f"Connessione a Pepper fallita ({ip}:{port}). "
+                    f"Verifica che Pepper sia acceso e raggiungibile. "
+                ) from e
 
-        self.get_logger().info(f"Nodo audio avviato (mock={mock_mode}, default source: {self.DEFAULT_AUDIO_SOURCE})")
+
 
     def on_talking_changed(self, msg):
         self.get_logger().info(f"Stato talking: {msg.data}")

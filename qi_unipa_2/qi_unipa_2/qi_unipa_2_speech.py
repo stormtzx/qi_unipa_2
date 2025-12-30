@@ -7,7 +7,6 @@ import os
 import paramiko
 from rclpy.node import Node
 from std_msgs.msg import Bool, String
-from qi_unipa_2_interfaces.msg import Tracker
 from qi_unipa_2_interfaces.srv import SetPosture
 from qi_unipa_2_interfaces.action import Talking, Browsing
 from rclpy.action import ActionClient
@@ -42,7 +41,7 @@ class QiUnipa2_speech(Node):
 
         # Connessione condizionale
         if mock_mode:
-            self.get_logger().warn("MOCK MODE ATTIVO - Nessuna connessione a Pepper")
+            self.get_logger().warn("Nodo SPEECH attivo in MOCK MODE")
             self.session = None
             self.memory = None
             self.animated_speech = None
@@ -69,21 +68,16 @@ class QiUnipa2_speech(Node):
                 self.leds_service = self.session.service("ALLeds")
                 
                 # Variabili
-                self.is_recognizing = False
-                        
-                self.get_logger().info("Connesso a Pepper!")
+                self.is_recognizing = False                        
+                self.get_logger().info("Nodo SPEECH attivo e connesso a Pepper!")
             except Exception as e:
                 self.get_logger().error(f"Impossibile connettersi a Pepper: {e}")
-                self.get_logger().warn("Passaggio automatico a MOCK MODE")
-                self.session = None
-                self.memory = None
-                self.animated_speech = None
-                self.audio_service = None
-                self.sound_detect_service = None
-                self.configuration = None
-                self.leds_service = None
-                self.is_recognizing = False
-
+                self.get_logger().error("TERMINAZIONE FORZATA - Connessione fallita")
+                # Solleva eccezione per terminare il nodo
+                raise RuntimeError(
+                    f"Connessione a Pepper fallita ({ip}:{port}). "
+                    f"Verifica che Pepper sia acceso e raggiungibile. "
+                ) from e
 
         # Service
         self.set_posture_client = self.create_client(SetPosture, '/pepper/services/set_posture')
@@ -94,7 +88,6 @@ class QiUnipa2_speech(Node):
 
 
         # Topic publisher
-        self.tracking_pub = self.create_publisher(Tracker, "/pepper/topics/tracker",  qos_reliable_10)
         self.isTalking_pub = self.create_publisher(Bool, '/pepper/topics/is_talking',  qos_reliable_10)
 
 
@@ -118,14 +111,6 @@ class QiUnipa2_speech(Node):
         self.set_posture_client.call_async(request)
         self.get_logger().debug(f"Chiamata set_posture: {posture_name} @ speed {speed}")
 
-
-
-    # Tracking durante il parlato
-    def pub_tracker(self, name, distance):
-        msg = Tracker()
-        msg.target_name = name
-        msg.distance = distance
-        self.tracking_pub.publish(msg)
 
 
 

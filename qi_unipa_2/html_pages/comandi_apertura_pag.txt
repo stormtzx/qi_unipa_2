@@ -78,3 +78,12 @@ per cancellare nodi (esempio)
 
 MATCH (n:TestNutrizionale {tipo: "MUST", data: "2025-08-05", punteggio: "0"})
 DETACH DELETE n
+
+
+MATCH (n:Anziano {nome: "Mario"})
+DETACH DELETE n
+
+
+
+MATCH (n:TestNutrizionale {tipo: "MUST"})
+DETACH DELETE n

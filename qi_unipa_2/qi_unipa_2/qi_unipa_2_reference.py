@@ -39,7 +39,7 @@ class QiUnipa2_reference(Node):
 
         # Connessione condizionale a Pepper
         if mock_mode:
-            self.get_logger().warn("MOCK MODE ATTIVO - Nessuna connessione a Pepper")
+            self.get_logger().warn("Nodo REFERENCE attivo in MOCK MODE")
             self.session = None
             self.memory = None
             self.motion = None
@@ -56,28 +56,28 @@ class QiUnipa2_reference(Node):
                 self.memory = self.session.service("ALMemory")
                 self.motion = self.session.service("ALMotion")
                 self.sonar = self.session.service("ALSonar")
-                self.sonar.subscribe("Sonar_nav")
-                self.get_logger().info("Sonar attivato")
-                
-                self.get_logger().info("Connesso a Pepper - Servizi navigation attivi")
-                
+                self.sonar.subscribe("Sonar_nav")                            
+                self.get_logger().info("Nodo REFERENCE attivo e connesso a Pepper!")
             except Exception as e:
                 self.get_logger().error(f"Impossibile connettersi a Pepper: {e}")
-                self.get_logger().warn("Passaggio automatico a MOCK MODE")
-                self.mock_mode = True
-                self.session = None
-                self.memory = None
-                self.motion = None
-                self.sonar = None
-                
-                # Inizializza valori mock anche in caso di fallback
-                self.mock_imu = {
-                    'accel_x': 0.0, 'accel_y': 0.0, 'accel_z': 9.81,
-                    'gyro_x': 0.0, 'gyro_y': 0.0, 'gyro_z': 0.0,
-                    'angle_x': 0.0, 'angle_y': 0.0
-                }
-                self.mock_sonar = {'front_sonar': 0.5, 'back_sonar': 0.5}
-                self.mock_position = {'x': 0.0, 'y': 0.0, 'theta': 0.0}
+                self.get_logger().error("TERMINAZIONE FORZATA - Connessione fallita")
+                # Solleva eccezione per terminare il nodo
+                raise RuntimeError(
+                    f"Connessione a Pepper fallita ({ip}:{port}). "
+                    f"Verifica che Pepper sia acceso e raggiungibile. "
+                ) from e
+
+
+
+        # ========== VALORI MOCK MODE ==========
+        self.mock_imu = {
+            'accel_x': 0.0, 'accel_y': 0.0, 'accel_z': 9.81,
+            'gyro_x': 0.0, 'gyro_y': 0.0, 'gyro_z': 0.0,
+            'angle_x': 0.0, 'angle_y': 0.0
+        }
+        self.mock_sonar = {'front_sonar': 0.5, 'back_sonar': 0.5}
+        self.mock_position = {'x': 1.0, 'y': 2.0, 'theta': 3.0}
+
 
         # ========== SOGLIE DI CAMBIO ==========
         self.imu_accel_threshold = 0.05      # m/s² di cambio
@@ -107,6 +107,8 @@ class QiUnipa2_reference(Node):
         # Timers per sensori continui
         self.timer_imu = self.create_timer(0.1, self.imu_callback)           # 10Hz
         self.timer_sonar = self.create_timer(1.0, self.sonar_callback)       # 1Hz
+   
+    
 
 
     def get_position_callback(self, request, response):

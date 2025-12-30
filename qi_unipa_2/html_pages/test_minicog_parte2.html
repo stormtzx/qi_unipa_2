@@ -180,6 +180,9 @@
   <div id="message"></div>
   <script type="text/javascript">
 
+
+window.onbeforeunload = function() {return "Attenzione: confermi chiusura pagina?";}
+
 const canvas = document.getElementById('orologio-canvas');
 const ctx = canvas.getContext('2d');
 

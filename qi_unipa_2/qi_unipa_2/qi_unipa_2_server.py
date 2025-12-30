@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 class QiUnipa2_server(Node):
     def __init__(self):
         super().__init__('qi_unipa_2_server')
-        
+
         self.declare_parameter('http_port', DEFAULT_PORT)
         self.declare_parameter('http_host', 'localhost')
         self.declare_parameter('tablet_ip', '192.168.1.100')
@@ -38,11 +38,20 @@ class QiUnipa2_server(Node):
         self.http_host = self.get_parameter('http_host').value
         self.tablet_ip = self.get_parameter('tablet_ip').value
         self.mock_mode = self.get_parameter('mock_mode').value
-
-        # Crea Utils
-        utils = Utils(mock_mode=self.mock_mode)
-        qos_reliable_1 = utils.get_QoS('reliable', 1)
         
+        # Crea Utils        
+        # Recupera IP e Port per Pepper dai parametri in input
+        pepper_ip = self.get_parameter('ip').value
+        pepper_port = self.get_parameter('port').value
+        
+        # Passa l'ip e porta anche ad a Utils
+        utils = Utils(
+            mock_mode=self.mock_mode,
+            ip=pepper_ip,           # ← Passa IP dal parametro
+            port=pepper_port        # ← Passa Port dal parametro
+        )
+        
+
         # URL base per accedere alle pagine
         self.base_url = f"http://{self.http_host}:{http_port}"
         
@@ -119,12 +128,12 @@ class QiUnipa2_server(Node):
         )
         self.queue_processor_thread.start()
         
-        self.get_logger().info(f"QiUnipa2_server inizializzato")
-        self.get_logger().info(f"HTTP server: {self.base_url}")
-        self.get_logger().info(f"Tablet IP: {self.tablet_ip}")
-        self.get_logger().info(f"Modalità mock: {'ABILITATA' if self.mock_mode else 'DISABILITATA'}")
-        self.get_logger().info("Queue processor avviato")
-        self.get_logger().info("Navigazione automatica attiva")
+        if self.mock_mode:
+            self.get_logger().info(f"Nodo SERVER attivo in MOCK MODE")
+        else:
+            self.get_logger().info(f"Nodo SERVER attivo e connesso a Pepper all'indirizzo-> {pepper_ip}:{pepper_port}")
+            
+        self.get_logger().info(f"HTTP server: {self.base_url}, tablet IP: {self.tablet_ip}")
     
 
     def _process_queues(self):
@@ -355,7 +364,7 @@ class QiUnipa2_server(Node):
             self.get_logger().info(f" MINICOG PARTE 2 - Score: {msg.minicog_parte2_score}, Ora: {msg.minicog_parte2_ore}:{msg.minicog_parte2_minuti:02d}")
         
         elif formtype == "minicog_parte3":
-            msg.minicog_parte3_score = 2  # Fisso
+            msg.minicog_parte3_score = 0 
             current_page = "test_minicog_parte3.html"
             msg.test_name = "MiniCog"
             msg.page_name = current_page

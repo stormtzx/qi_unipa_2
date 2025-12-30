@@ -14,12 +14,12 @@ string test_type                     # Tipo form: "minicog_parte1", "minicog_par
 # minicog_parte1: Parole memorizzazione (visualizza solo le parole, non c'è invio dati)
 
 # minicog_parte2: Orologio
-int32 minicog_parte2_score          # 0, 3 o 6 punti
+int32 minicog_parte2_score          # 0, 3 o 7 punti
 int32 minicog_parte2_ore            # Ore impostate
 int32 minicog_parte2_minuti         # Minuti impostati
 
 # minicog_parte3: Disegno orologio
-int32 minicog_parte3_score          # Fisso 2 punti
+int32 minicog_parte3_score          # Fisso 1 punti
 # string minicog_parte3_disegno_base64 # Disegno in base64, decommentare se si vuole inviare anche l'immagine
 
 # minicog_parte4: Verifica parole

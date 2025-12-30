@@ -114,6 +114,10 @@
   <div id="message"></div>
 <script type="text/javascript">
 
+window.onbeforeunload = function() {return "Attenzione: confermi chiusura pagina?";}
+
+
+
 // ========== CANVAS SETUP ==========
 
 const canvas = document.getElementById('drawing-canvas');

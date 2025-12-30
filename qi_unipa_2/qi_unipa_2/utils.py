@@ -18,14 +18,14 @@ class Utils:
         self.port = port
         self.mock_mode = mock_mode
         self.session = None
-        self.logger_error = f"Can't connect to Naoqi at ip \"{self.ip}\" on port {self.port}.\nPlease check your script arguments."
+        self.logger_error = f"Impossibile connettersi a pepper all'ip: \"{self.ip}\" sulla porta: {self.port}.\n."
         
         # Connessione sessione SOLO se non mock
         if not mock_mode:
             self.session = qi.Session()
             self.session = self.set_connection()
         else:
-            print("[UTILS] MOCK MODE - Nessuna connessione a Pepper")
+            print("[UTILS] Avvio utilizzo del file utils in MOCK MODE")
 
         # URL dell'API Groq
         self.API_URL = "https://api.groq.com/openai/v1/audio/transcriptions"
@@ -53,7 +53,7 @@ class Utils:
         except RuntimeError:
             print(self.logger_error)
             # NON fare sys.exit(), solleva eccezione
-            raise RuntimeError(f"Cannot connect to Pepper at {self.ip}:{self.port}")
+            raise RuntimeError(f"Impossibile connettersi a pepper sull'indirizzo {self.ip}:{self.port}")
     
     def get_ip(self):
         return self.ip

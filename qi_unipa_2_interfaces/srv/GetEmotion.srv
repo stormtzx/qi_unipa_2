@@ -1,0 +1,12 @@
+# TrackerToggle.srv
+#Abiita/disabilita il tracking su richiesta
+
+# Request
+bool enable              # true=start, false=stop
+string target_name       # "Face", "People", "Sound" (ignorato se enable=false)
+float64 distance         # Distanza target in metri (default: 2.0, ignorato se enable=false)
+---
+# Response
+bool success
+string message           # Messaggio descrittivo o errore
+string active_target     # Target attualmente attivo ("" se fermo)

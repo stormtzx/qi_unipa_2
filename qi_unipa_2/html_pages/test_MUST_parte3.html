@@ -113,6 +113,8 @@
   <div id="message"></div>
 <script type="text/javascript">
 
+window.onbeforeunload = function() {return "Attenzione: confermi chiusura pagina?";}
+
 // ========== STATO GLOBALE ==========
 
 let redirectUrl = null;

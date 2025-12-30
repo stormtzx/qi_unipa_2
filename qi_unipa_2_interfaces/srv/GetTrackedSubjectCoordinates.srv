@@ -9,4 +9,5 @@ float32 x                   # Coordinate in frame TORSO (metri)
 float32 y
 float32 z
 float32 distance            # Distanza euclidea dal robot (metri)
-string frame                # Frame di riferimento ("TORSO")
+float64 theta                # Orientamento verso il target (radianti)
+string frame                # Frame di riferimento (ATTUALMENTE: "ROBOT" ossia distanza media tra i due piedi)

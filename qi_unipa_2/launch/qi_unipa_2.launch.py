@@ -12,11 +12,12 @@ def generate_launch_description():
         description='Enable MOCK mode (OFFLINE TESTING: no Pepper connection)'
     )
 
-    use_local_mic_arg = DeclareLaunchArgument(
-        'use_local_mic',
+    mock_audio_transcription_arg = DeclareLaunchArgument(
+        'mock_audio_transcription',
         default_value='false',
-        description='Usare il microfono locale in modalita mock sul nodo audio per i test di trascrizione'
+        description="Abilita l'audio transcription con OpenAI Whisper ()"
     )
+    
     
     ip_arg = DeclareLaunchArgument(
         'ip',
@@ -30,17 +31,16 @@ def generate_launch_description():
         description='Naoqi port number'
     )
 
-    
     reaction_mode_arg = DeclareLaunchArgument(
         'reaction_mode',
         default_value='Autonomous',
-        description='Definisce se Pepper deve reagire agli input o meno. ' \
-        'Utile in caso di utilizzo con un LLM'
+        description='Definisce se Pepper deve reagire agli input o meno. '
+                    'Utile in caso di utilizzo con un LLM'
     )
 
     qi_unipa_2_sensor_node = Node(
         package='qi_unipa_2',
-        executable='qi_unipa_2_sensor',  
+        executable='qi_unipa_2_sensor',
         name='qi_unipa_2_sensor',
         output='screen',
         parameters=[{
@@ -53,7 +53,7 @@ def generate_launch_description():
     
     qi_unipa_2_movement_node = Node(
         package='qi_unipa_2',
-        executable='qi_unipa_2_movement',  
+        executable='qi_unipa_2_movement',
         name='qi_unipa_2_movement',
         output='screen',
         parameters=[{
@@ -65,8 +65,8 @@ def generate_launch_description():
 
     qi_unipa_2_speech_node = Node(
         package='qi_unipa_2',
-        executable='qi_unipa_2_speech',  
-        name='qi_unipa_2_speech', #Talk+TTS
+        executable='qi_unipa_2_speech',
+        name='qi_unipa_2_speech',  # Talk+TTS
         output='screen',
         parameters=[{
             'mock_mode': LaunchConfiguration('mock_mode'),
@@ -76,36 +76,33 @@ def generate_launch_description():
     )
 
     qi_unipa_2_audio_node = Node(
-    package='qi_unipa_2',
-    executable='qi_unipa_2_audio',
-    name='qi_unipa_2_audio',
-    output='screen',
-    parameters=[{
-        'mock_mode': LaunchConfiguration('mock_mode'),
-        'ip': LaunchConfiguration('ip'),
-        'port': LaunchConfiguration('port'),
-        'use_local_mic': LaunchConfiguration('use_local_mic')
-
-    }]
+        package='qi_unipa_2',
+        executable='qi_unipa_2_audio',
+        name='qi_unipa_2_audio',
+        output='screen',
+        parameters=[{
+            'mock_mode': LaunchConfiguration('mock_mode'),
+            'ip': LaunchConfiguration('ip'),
+            'port': LaunchConfiguration('port'),
+            'mock_audio_transcription': LaunchConfiguration('mock_audio_transcription')
+        }]
     )
-
 
     qi_unipa_2_reference_node = Node(
-    package='qi_unipa_2',
-    executable='qi_unipa_2_reference',
-    name='qi_unipa_2_reference',
-    output='screen',
-    parameters=[{
-        'mock_mode': LaunchConfiguration('mock_mode'),
-        'ip': LaunchConfiguration('ip'),
-        'port': LaunchConfiguration('port')
-    }]
+        package='qi_unipa_2',
+        executable='qi_unipa_2_reference',
+        name='qi_unipa_2_reference',
+        output='screen',
+        parameters=[{
+            'mock_mode': LaunchConfiguration('mock_mode'),
+            'ip': LaunchConfiguration('ip'),
+            'port': LaunchConfiguration('port')
+        }]
     )
 
-    
     qi_unipa_2_server_node = Node(
         package='qi_unipa_2',
-        executable='qi_unipa_2_server',  
+        executable='qi_unipa_2_server',
         name='qi_unipa_2_server',
         output='screen',
         parameters=[{
@@ -118,7 +115,7 @@ def generate_launch_description():
     
     qi_unipa_2_vision_node = Node(
         package='qi_unipa_2',
-        executable='qi_unipa_2_vision',  
+        executable='qi_unipa_2_vision',
         name='qi_unipa_2_vision',
         output='screen',
         parameters=[{
@@ -130,7 +127,7 @@ def generate_launch_description():
 
     return LaunchDescription([
         mock_mode_arg,
-        use_local_mic_arg,
+        mock_audio_transcription_arg,
         ip_arg,
         port_arg,
         reaction_mode_arg,

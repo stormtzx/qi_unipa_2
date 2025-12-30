@@ -1,0 +1,217 @@
+
+        angle_limits = {
+            "HeadYaw": (-2.0857, 2.0857), # Rotazione testa: diminuendo-> testa gira a sinistra / aumentando-> testa gira a destra
+            "HeadPitch": (-0.7068, 0.4451), # Inclinazione testa: diminuendo-> testa va in alto / aumentando-> testa va in basso
+            "LShoulderPitch": (-2.0857, 2.0857), # Inclinazione spalla sinistra: diminuendo-> braccio sx va in alto / aumentando-> braccio sx va in basso
+            "RShoulderPitch": (-2.0857, 2.0857), # Inclinazione spalla destra: diminuendo-> braccio dx va in alto / aumentando-> braccio dx va in basso
+            "LShoulderRoll": (0.0087, 1.5620), # Rotazione spalla sinistra: aumentando-> braccio sx si allontana dal corpo (apertura laterale)
+            "RShoulderRoll": (-1.5620, -0.0087), # Rotazione spalla destra: diminuendo-> braccio dx si allontana dal corpo (apertura laterale)
+            "LElbowYaw": (-2.0857, 2.0857), # Rotazione avambraccio sinistro: diminuendo-> rotazione interna / aumentando-> rotazione esterna
+            "RElbowYaw": (-2.0857, 2.0857), # Rotazione avambraccio destro: diminuendo-> rotazione interna / aumentando-> rotazione esterna
+            "LElbowRoll": (-1.5620, -0.0087), # Piegamento gomito sinistro: diminuendo-> gomito si piega (mano verso spalla)
+            "RElbowRoll": (0.0087, 1.5620), # Piegamento gomito destro: aumentando-> gomito si piega (mano verso spalla)
+            "LWristYaw": (-1.8238, 1.8238), # Rotazione polso sinistro: diminuendo-> polso ruota verso interno / aumentando-> polso ruota verso esterno
+            "RWristYaw": (-1.8238, 1.8238), # Rotazione polso destro: diminuendo-> polso ruota verso interno / aumentando-> polso ruota verso esterno
+            "HipRoll": (-0.5149, 0.5149), # Inclinazione laterale bacino: diminuendo-> corpo si inclina a sinistra / aumentando-> corpo si inclina a destra
+            "HipPitch": (-1.0385, 1.0385), # Inclinazione avanti/indietro bacino: diminuendo-> busto si piega indietro / aumentando-> busto si piega in avanti
+            "KneePitch": (-0.5149, 0.5149), # Piegamento ginocchia: diminuendo-> ginocchia si estendono / aumentando-> ginocchia si flettono
+        }
+
+
+In gradi:
+HeadYaw: (-119.5°, 119.5°)           # Rotazione testa: diminuendo-> testa gira a sinistra / aumentando-> testa gira a destra
+HeadPitch: (-40.5°, 25.5°)           # Inclinazione testa: diminuendo-> testa va in alto / aumentando-> testa va in basso
+LShoulderPitch: (-119.5°, 119.5°)    # Inclinazione spalla sinistra: diminuendo-> braccio sx va in alto / aumentando-> braccio sx va in basso
+RShoulderPitch: (-119.5°, 119.5°)    # Inclinazione spalla destra: diminuendo-> braccio dx va in alto / aumentando-> braccio dx va in basso
+LShoulderRoll: (0.5°, 89.5°)         # Rotazione spalla sinistra: aumentando-> braccio sx si allontana dal corpo (apertura laterale)
+RShoulderRoll: (-89.5°, -0.5°)       # Rotazione spalla destra: diminuendo-> braccio dx si allontana dal corpo (apertura laterale)
+LElbowYaw: (-119.5°, 119.5°)         # Rotazione avambraccio sinistro: aumentando-> rotazione interna / diminuendo-> rotazione esterna
+RElbowYaw: (-119.5°, 119.5°)         # Rotazione avambraccio destro: aumentando-> rotazione interna / diminuendo-> rotazione esterna
+LElbowRoll: (-89.5°, -0.5°)          # Piegamento gomito sinistro: diminuendo-> gomito si piega (mano verso spalla)
+RElbowRoll: (0.5°, 89.5°)            # Piegamento gomito destro: aumentando-> gomito si piega (mano verso spalla)
+LWristYaw: (-104.5°, 104.5°)         # Rotazione polso sinistro: diminuendo-> polso ruota verso interno / aumentando-> polso ruota verso esterno
+RWristYaw: (-104.5°, 104.5°)         # Rotazione polso destro: diminuendo-> polso ruota verso interno / aumentando-> polso ruota verso esterno
+HipRoll: (-29.5°, 29.5°)             # Inclinazione laterale bacino: diminuendo-> corpo si inclina a sinistra / aumentando-> corpo si inclina a destra
+HipPitch: (-59.5°, 59.5°)            # Inclinazione avanti/indietro bacino: diminuendo-> busto si piega indietro / aumentando-> busto si piega in avanti
+KneePitch: (-29.5°, 29.5°)           # Piegamento ginocchia: diminuendo-> ginocchia si estendono / aumentando-> ginocchia si flettono
+
+Mani (binari):
+LHand: (0, 1)                         # 0 = aprire / 1 = chiudere
+RHand: (0, 1)                         # 0 = aprire / 1 = chiudere
+
+
+
+PROMPT DEFINITIVO E CORRETTO PER L'LLM:
+
+self.joint_movement_prompt = """
+═══════════════════════════════════════════════════════════════
+CATEGORIA TOOL: SETJOINT+SETHAND (Giunti + Mani)
+MAPPATURA VERIFICATA - Pepper NAO - Valori in RADIANTI
+═══════════════════════════════════════════════════════════════
+
+⚠️ GESTIONE COMANDI NON INTERPRETABILI:
+Se il comando NON è eseguibile (impossibile/ambiguo/pericoloso), ritorna:
+{
+  "error": "not_interpretable",
+  "reason": "Spiegazione breve del problema",
+  "suggestion": "Comando alternativo suggerito (opzionale)"
+}
+
+Esempi NON interpretabili:
+- Movimenti impossibili: "fai la ruota", "salta", "corri"
+- Comandi ambigui: "muoviti", "fai qualcosa"
+- Richieste non motorie: "pensa", "ricorda"
+- Azioni pericolose: "rompi", "colpisci"
+
+═══════════════════════════════════════════════════════════════
+
+
+=== MANI (Non sono giunti, input binari) ===
+
+LHand, RHand:
+0 = APRIRE (mano aperta, dita distese)
+1 = CHIUDERE (pugno chiuso, dita piegate)
+
+⚠️ REGOLA CRITICA: "apri" = 0, "chiudi" = 1
+
+
+=== GIUNTI (Articolazioni in RADIANTI) ===
+
+--- TESTA ---
+
+HeadYaw (-2.0857 a 2.0857 rad):
+DIMINUIRE (negativo) → testa gira a DESTRA
+AUMENTARE (positivo) → testa gira a SINISTRA
+Esempio: "Gira testa a sinistra 45°" → HeadYaw: -0.785 rad
+
+HeadPitch (-0.7068 a 0.4451 rad):
+DIMINUIRE (negativo) → testa va in ALTO
+AUMENTARE (positivo) → testa va in BASSO
+Esempio: "Alza la testa" → HeadPitch: -0.5 rad
+
+
+--- SPALLE ---
+
+LShoulderPitch (-2.0857 a 2.0857 rad) - Spalla SINISTRA:
+DIMINUIRE (negativo) → braccio sinistro va in ALTO
+AUMENTARE (positivo) → braccio sinistro va in BASSO
+Esempio: "Alza braccio sinistro" → LShoulderPitch: -1.0 rad
+
+RShoulderPitch (-2.0857 a 2.0857 rad) - Spalla DESTRA:
+DIMINUIRE (negativo) → braccio destro va in ALTO
+AUMENTARE (positivo) → braccio destro va in BASSO
+Esempio: "Alza braccio destro" → RShoulderPitch: -1.0 rad
+
+LShoulderRoll (0.0087 a 1.5620 rad) - Rotazione spalla SINISTRA - ⚠️ SOLO POSITIVI:
+AUMENTARE (positivo, verso 1.5620) → braccio sinistro si allontana dal corpo
+NON può essere negativo
+Esempio: "Apri braccio sinistro lateralmente" → LShoulderRoll: 0.8 rad
+
+RShoulderRoll (-1.5620 a -0.0087 rad) - Rotazione spalla DESTRA - ⚠️ SOLO NEGATIVI:
+DIMINUIRE (negativo, verso -1.5620) → braccio destro si allontana dal corpo
+NON può essere positivo
+Esempio: "Apri braccio destro lateralmente" → RShoulderRoll: -0.8 rad
+
+
+--- GOMITI ---
+
+LElbowYaw (-2.0857 a 2.0857 rad) - Rotazione avambraccio SINISTRO:
+DIMINUIRE (negativo) → rotazione ESTERNA (lontano dal corpo)
+AUMENTARE (positivo) → rotazione INTERNA (verso il corpo)
+Esempio: "Ruota avambraccio sinistro verso l'interno" → LElbowYaw: 0.8 rad
+
+RElbowYaw (-2.0857 a 2.0857 rad) - Rotazione avambraccio DESTRO:
+DIMINUIRE (negativo) → rotazione INTERNA (verso il corpo)
+AUMENTARE (positivo) → rotazione ESTERNA (lontano dal corpo)
+Esempio: "Ruota avambraccio destro interno" → RElbowYaw: -0.8 rad
+
+LElbowRoll (-1.5620 a -0.0087 rad) - Piegamento gomito SINISTRO - ⚠️ SOLO NEGATIVI:
+DIMINUIRE (negativo, verso -1.5620) → gomito sinistro si PIEGA (mano verso spalla)
+AUMENTARE (verso -0.0087) → gomito sinistro si ESTENDE
+NON può essere positivo
+Esempio: "Piega gomito sinistro" → LElbowRoll: -1.0 rad
+
+RElbowRoll (0.0087 a 1.5620 rad) - Piegamento gomito DESTRO - ⚠️ SOLO POSITIVI:
+AUMENTARE (positivo, verso 1.5620) → gomito destro si PIEGA (mano verso spalla)
+DIMINUIRE (verso 0.0087) → gomito destro si ESTENDE
+NON può essere negativo
+Esempio: "Piega gomito destro" → RElbowRoll: 1.0 rad
+
+
+--- POLSI ---
+
+LWristYaw (-1.8238 a 1.8238 rad) - Rotazione polso SINISTRO:
+DIMINUIRE (negativo) → polso sinistro ruota verso ESTERNO
+AUMENTARE (positivo) → polso sinistro ruota verso INTERNO
+Esempio: "Ruota polso sinistro verso l'interno" → LWristYaw: 0.8 rad
+
+RWristYaw (-1.8238 a 1.8238 rad) - Rotazione polso DESTRO:
+DIMINUIRE (negativo) → polso destro ruota verso INTERNO
+AUMENTARE (positivo) → polso destro ruota verso ESTERNO
+Esempio: "Ruota polso destro interno" → RWristYaw: -0.8 rad
+
+
+--- BACINO/GAMBE ---
+
+HipRoll (-0.5149 a 0.5149 rad):
+DIMINUIRE (negativo) → corpo si inclina a SINISTRA
+AUMENTARE (positivo) → corpo si inclina a DESTRA
+Esempio: "Inclina corpo a destra" → HipRoll: 0.3 rad
+
+HipPitch (-1.0385 a 1.0385 rad):
+DIMINUIRE (negativo) → busto si piega INDIETRO
+AUMENTARE (positivo) → busto si piega IN AVANTI
+Esempio: "Piega busto in avanti" → HipPitch: 0.5 rad
+
+KneePitch (-0.5149 a 0.5149 rad):
+DIMINUIRE (negativo) → ginocchia si ESTENDONO (si piegano verso dietro)
+AUMENTARE (positivo) → ginocchia si FLETTONO (si piegano verso avanti)
+Esempio: "Fletti ginocchia" → KneePitch: 0.4 rad
+
+
+═══════════════════════════════════════════════════════════════
+ATTENZIONE: RANGE ASIMMETRICI (sempre in RADIANTI)
+═══════════════════════════════════════════════════════════════
+
+Alcuni joint hanno range asimmetrici:
+- LShoulderRoll: SOLO positivi (0.0087 a 1.5620 rad)
+- RShoulderRoll: SOLO negativi (-1.5620 a -0.0087 rad)
+- LElbowRoll: SOLO negativi (-1.5620 a -0.0087 rad)
+- RElbowRoll: SOLO positivi (0.0087 a 1.5620 rad)
+
+Se dai valori fuori dal range, il robot li clippa al limite più vicino.
+
+
+═══════════════════════════════════════════════════════════════
+CONVERSIONI UTILI (gradi → radianti):
+═══════════════════════════════════════════════════════════════
+
+15° = 0.26 rad
+30° = 0.52 rad
+45° = 0.79 rad
+60° = 1.05 rad
+90° = 1.57 rad
+120° = 2.09 rad
+
+Formula: radianti = gradi × π / 180
+
+
+═══════════════════════════════════════════════════════════════
+CHECKLIST PRIMA DI RISPONDERE
+═══════════════════════════════════════════════════════════════
+
+1. ✓ Il comando è ESEGUIBILE dal robot Pepper?
+   → Se NO: usa formato fallback con "error": "not_interpretable"
+
+2. ✓ Valori in RADIANTI (non gradi)?
+3. ✓ Valori nel range corretto?
+4. ✓ Segno corretto per la direzione?
+5. ✓ "sinistra" → valore negativo per Yaw?
+6. ✓ "apri mano" → 0?
+7. ✓ "chiudi mano" → 1?
+8. ✓ Roll asimmetrici verificati?
+
+Se qualcosa non torna, CORREGGI PRIMA DI RISPONDERE.
+
+═══════════════════════════════════════════════════════════════
+"""

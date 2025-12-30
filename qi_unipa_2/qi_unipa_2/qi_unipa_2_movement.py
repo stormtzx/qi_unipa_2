@@ -6,11 +6,12 @@ import sys
 from std_msgs.msg import Int32
 from geometry_msgs.msg import Vector3
 from qi_unipa_2.utils import Utils #type: ignore
-from qi_unipa_2_interfaces.srv import SetState, SetPosture, SetJointAngles, SetHand, GetTrackedObjectCoordinates, PlayAnimation #type: ignore
-from qi_unipa_2_interfaces.action import Walking, Navigating, Seeking #type: ignore
-from qi_unipa_2_interfaces.msg import Tracker
+from qi_unipa_2_interfaces.srv import SetState, SetPosture, SetJointAngles, SetHand, PlayAnimation #type: ignore
+from qi_unipa_2_interfaces.action import Moving, Walking, Navigating #type: ignore
+from qi_unipa_2_interfaces.msg import Sonar
 import math
 import time
+
 
 
 
@@ -32,10 +33,20 @@ class QiUnipa2_movement(Node):
         self._current_map_name = None
 
 
-        # Variabili di stato per Seeking
-        self._tracker_data = None
-        self._tracking_active = False
-        self._last_tracking_time = 0
+
+        # Creazione Utils
+        utils = Utils(ip=ip, port=port, mock_mode=mock_mode)
+        qos_reliable_10 = utils.get_QoS('reliable', 10)
+        qos_best_effort_10 = utils.get_QoS('best_effort', 10)
+
+
+
+
+
+        # Variabili sonar (AGGIUNTO)
+        self.front_sonar = 0.0
+        self.back_sonar = 0.0
+
 
 
 
@@ -46,14 +57,15 @@ class QiUnipa2_movement(Node):
 
 
 
+
         # Connessione condizionale
         if mock_mode:
-            self.get_logger().warn("MOCK MODE ATTIVO - Nessuna connessione a Pepper")
+            self.get_logger().warn("Nodo MOVEMENT attivo in MOCK MODE")
             self.session = None
             self.motion = None
             self.posture = None
-            self.tracker = None
             self.navigation = None
+            self.animation_player = None
         else:
             try:
                 self.get_logger().info(f"Tentativo connessione a Pepper: {ip}:{port}")
@@ -65,16 +77,17 @@ class QiUnipa2_movement(Node):
                 self.navigation = self.session.service("ALNavigation")
                 self.motion = self.session.service("ALMotion")
                 self.posture = self.session.service("ALRobotPosture")
-                self.tracker = self.session.service("ALTracker")
-                self.get_logger().info("Connesso a Pepper!")
+                self.animation_player = self.session.service("ALAnimationPlayer")
+                self.get_logger().info("Nodo MOVEMENT attivo e connesso a Pepper!")
             except Exception as e:
                 self.get_logger().error(f"Impossibile connettersi a Pepper: {e}")
-                self.get_logger().warn("Passaggio automatico a MOCK MODE")
-                self.session = None
-                self.motion = None
-                self.posture = None
-                self.navigation = None
-                self.tracker = None
+                self.get_logger().error("TERMINAZIONE FORZATA - Connessione fallita")
+                # Solleva eccezione per terminare il nodo
+                raise RuntimeError(
+                    f"Connessione a Pepper fallita ({ip}:{port}). "
+                    f"Verifica che Pepper sia acceso e raggiungibile. "
+                ) from e
+
 
 
 
@@ -87,72 +100,34 @@ class QiUnipa2_movement(Node):
         self.create_service(PlayAnimation, '/pepper/services/play_animation', self.play_animation, qos_profile=qos_reliable_10)
         
         # Dichiarazione action
-        self._action_server_walking = ActionServer(self, Walking, '/pepper/actions/walking', self.walking)
+        self._action_server_moving = ActionServer(self, Moving, '/pepper/actions/moving', self.moving)
         # ActionServer Navigating (NAVIGAZIONE AUTONOMA CON OBSTACLE AVOIDANCE)
         self.navigating_server = ActionServer(self, Navigating, '/pepper/actions/navigating', self.navigating)
-        # ActionServer Seeking (SEEKING CON TRACKING E NAVIGAZIONE CONTINUA CON OBSTACLE AVOIDANCE)
-        self.seeking_server = ActionServer(self, Seeking, '/pepper/actions/seeking', self.seeking)
+        # ActionServer Walking (ossia moving+obstacle avoidance semplificato)
+        self.walking_server = ActionServer(self, Walking, '/pepper/actions/walking', self.walking)
 
-
-        # Subscription a tracker data
-        self.create_subscription(Tracker, '/pepper/topics/tracker', self.on_tracker_data, qos_best_effort_5)
-
-
-
-
-
-    # ========== CALLBACKS TRACKER DATA ==========
-    def on_tracker_data(self, msg):
-        """Riceve dati di tracking da tracking.py"""
-        self._tracker_data = msg
-        self._last_tracking_time = time.time()
+        # Subscription a sonar data (CORRETTO: era self.node.create_subscription)
+        self.sonar_sub = self.create_subscription(
+            Sonar,
+            '/pepper/topics/sonar',
+            self.sonar_handler,
+            qos_best_effort_10
+        )
 
 
 
-    def get_tracked_position(self):
-        """Estrae coordinate 3D dal tracker data ricevuto"""
-        if self._tracker_data is None:
-            return None
-        
-        try:
-            # Il messaggio Tracker contiene le coordinate
-            x = self._tracker_data.x
-            y = self._tracker_data.y
-            z = self._tracker_data.z
-            return {'x': x, 'y': y, 'z': z}
-        except:
-            return None
 
 
 
-    def request_tracked_object_coordinates(self):
-        """Chiama service di tracking per ottenere coordinate attuali"""
-        if self.motion is None:
-            return None
-        
-        try:
-            # Verifica se esiste il service
-            client = self.create_client(GetTrackedObjectCoordinates, '/pepper/services/get_tracked_object_coordinates')
-            
-            if not client.wait_for_service(timeout_sec=2.0):
-                return None
-            
-            request = GetTrackedObjectCoordinates.Request()
-            future = client.call_async(request)
-            rclpy.spin_until_future_complete(self, future)
-            
-            result = future.result()
-            if result and result.success:
-                return {
-                    'x': result.x,
-                    'y': result.y,
-                    'z': result.z,
-                    'distance': result.distance
-                }
-        except:
-            pass
-        
-        return None
+    # ========== CALLBACKS SONAR DATA (AGGIUNTO) ==========
+    def sonar_handler(self, msg):
+        """Callback per dati sonar dal nodo reference"""
+        self.front_sonar = msg.front_sonar
+        self.back_sonar = msg.back_sonar
+
+
+
+
 
 
 
@@ -179,6 +154,8 @@ class QiUnipa2_movement(Node):
             response.message = str(e)
         return response
     
+
+
  
     #Callback per il service: SetJointAngles
     def set_joint_angles(self, request, response):
@@ -249,6 +226,7 @@ class QiUnipa2_movement(Node):
             "KneePitch": (-0.5149, 0.5149), # Piegamento ginocchia: diminuendo-> ginocchia si estendono / aumentando-> ginocchia si flettono
         }
 
+
         for i, (name, angle) in enumerate(zip(names, angles)):
             if name in angle_limits:
                 min_angle, max_angle = angle_limits[name]
@@ -281,6 +259,7 @@ class QiUnipa2_movement(Node):
 
 
 
+
     #Callback per il service: SetPosture
     def set_posture(self, request, response):
         if self.posture is None:
@@ -301,6 +280,7 @@ class QiUnipa2_movement(Node):
             response.success = False
             response.message = str(e)
         return response
+
 
 
 
@@ -342,226 +322,124 @@ class QiUnipa2_movement(Node):
 
 
 
+
     #Callback per il service: PlayAnimation
     def play_animation(self, request, response):
-        """Service per eseguire animazioni predefinite"""
+        """
+        Service per eseguire animazioni NATIVE di Pepper.
+        Solo set essenziale. Se animazione non disponibile, ritorna errore.
+        """
         
-        if self.motion is None:
-            self.get_logger().warn(f"[MOCK] Animation '{request.animation_type}' simulata")
+        # ===== MOCK MODE: motion o animation_player non disponibili =====
+        if self.motion is None or self.animation_player is None:
+            mock_reason = "motion" if self.motion is None else "animation_player"
+            self.get_logger().warn(
+                f"[MOCK] play_animation chiamato: {request.animation_type} "
+                f"({mock_reason} non disponibile)"
+            )
             response.success = True
-            response.message = f"MOCK: Animation {request.animation_type} eseguita"
+            response.message = f"MOCK: Animation {request.animation_type} simulata"
             return response
         
-        animation_type = request.animation_type
+        animation_type = request.animation_type.lower()
+        
+        # ========== SET MINIMO VITALE (13 animazioni) ==========
+        native_animations = {
+            # Saluti base
+            "wave": "animations/Stand/Gestures/Hey_1",
+            "hello": "animations/Stand/Gestures/Hello_1",
+            
+            # Conferme/Negazioni
+            "yes": "animations/Stand/Gestures/Yes_1",
+            "nod": "animations/Stand/Gestures/Yes_1",
+            "no": "animations/Stand/Gestures/No_1",
+            
+            # Emozioni base
+            "happy": "animations/Stand/Gestures/Happy_1",
+            "thinking": "animations/Stand/Gestures/Think_1",
+            
+            # Comunicazione
+            "explain": "animations/Stand/Gestures/Explain_1",
+            "shrug": "animations/Stand/Gestures/IDontKnow_1",
+            
+            # Cortesia
+            "bow": "animations/Stand/Gestures/BowShort_1",
+            
+            # Indicare avanti (generico dritto)
+            "point": "animations/Stand/Gestures/ShowTablet_1",
+            
+            # Ballo e Festeggiamento
+            "dance": "animations/Stand/Gestures/Enthusiastic_5",
+            "celebrate": "animations/Stand/Emotions/Positive/Excited_1",
+        }
+        
+        # Verifica se animazione supportata
+        if animation_type not in native_animations:
+            available = ", ".join(sorted(native_animations.keys()))
+            self.get_logger().error(
+                f"❌ Animazione '{request.animation_type}' non supportata.\n"
+                f"   Disponibili: {available}"
+            )
+            response.success = False
+            response.message = (
+                f"Animazione '{request.animation_type}' non supportata. "
+                f"Disponibili: {available}"
+            )
+            return response
+        
+        # Esegui animazione (arrivati qui motion e animation_player sono disponibili)
+        animation_path = native_animations[animation_type]
         
         try:
-            if animation_type in ["dance", "dancing"]:
-                self._dancing(request.repetitions or 3)
-            elif animation_type in ["wave", "waving"]:
-                self._waving(request.side or "right")
-            elif animation_type in ["nod", "nodding"]:
-                self._nodding(request.repetitions or 3)
-            elif animation_type in ["shake", "shaking_head", "shake_head"]:
-                self._shaking_head(request.repetitions or 3)
-            elif animation_type in ["celebrate", "celebrating", "thumbs_up"]:
-                # puoi scegliere se mappare thumbs_up su celebrate o su un gesto specifico
-                self._celebrating()
-            elif animation_type in ["point", "pointing"]:
-                self._pointing(request.direction or "front")
-            elif animation_type in ["shrug", "shrugging"]:
-                self._shrugging()
-            elif animation_type in ["bow", "bowing"]:
-                self._bowing()
-            elif animation_type in ["think", "thinking"]:
-                self._thinking(request.duration or 3.0)
-            elif animation_type in ["clap", "clapping"]:
-                self._clapping(request.repetitions or 5)
-            else:
-                response.success = False
-                response.message = f"Animazione '{animation_type}' non supportata"
-                return response
+            self.get_logger().info(f"🎭 Esecuzione: {animation_path}")
+            
+            # Esegui (bloccante)
+            self.animation_player.run(animation_path, _async=False)
             
             response.success = True
-            response.message = f"Animazione {animation_type} completata"
-        
+            response.message = f"Animazione '{request.animation_type}' completata"
+            self.get_logger().info(f"✅ '{request.animation_type}' completata")
+            
         except Exception as e:
-            self.get_logger().error(f"Errore animazione: {e}")
+            self.get_logger().error(f"❌ Errore animazione '{animation_path}': {e}")
             response.success = False
-            response.message = str(e)
+            response.message = f"Errore esecuzione: {str(e)}"
         
         return response
 
 
-
-    # ========== METODI PRIVATI PER ANIMAZIONI ==========
-    
-    def _dancing(self, cycles):
-        """Pepper balla"""
-        for i in range(cycles):
-            self.motion.angleInterpolationWithSpeed(
-                ["HipRoll", "LShoulderPitch", "RShoulderPitch"],
-                [-0.3, -1.0, -1.0], 0.5
-            )
-            time.sleep(0.4)
-            self.motion.angleInterpolationWithSpeed(
-                ["HipRoll", "LShoulderPitch", "RShoulderPitch"],
-                [0.3, -1.0, -1.0], 0.5
-            )
-            time.sleep(0.4)
-        self.posture.goToPosture("Stand", 0.5)
-
-
-    def _waving(self, side):
-        """Pepper saluta"""
-        if side == "right":
-            shoulder, elbow, wrist = "RShoulderPitch", "RElbowRoll", "RWristYaw"
-            elbow_value = 1.0
-        else:
-            shoulder, elbow, wrist = "LShoulderPitch", "LElbowRoll", "LWristYaw"
-            elbow_value = -1.0
-        
-        self.motion.angleInterpolationWithSpeed([shoulder, elbow], [-1.5, elbow_value], 0.5)
-        for _ in range(3):
-            self.motion.angleInterpolationWithSpeed([wrist], [0.5], 0.3)
-            time.sleep(0.2)
-            self.motion.angleInterpolationWithSpeed([wrist], [-0.5], 0.3)
-            time.sleep(0.2)
-        self.posture.goToPosture("Stand", 0.5)
-
-
-    def _nodding(self, times):
-        """Pepper annuisce"""
-        for _ in range(times):
-            self.motion.angleInterpolationWithSpeed(["HeadPitch"], [0.4], 0.5)
-            time.sleep(0.3)
-            self.motion.angleInterpolationWithSpeed(["HeadPitch"], [-0.2], 0.5)
-            time.sleep(0.3)
-        self.motion.angleInterpolationWithSpeed(["HeadPitch"], [0.0], 0.3)
-
-
-    def _shaking_head(self, times):
-        """Pepper scuote la testa"""
-        for _ in range(times):
-            self.motion.angleInterpolationWithSpeed(["HeadYaw"], [0.6], 0.4)
-            time.sleep(0.2)
-            self.motion.angleInterpolationWithSpeed(["HeadYaw"], [-0.6], 0.4)
-            time.sleep(0.2)
-        self.motion.angleInterpolationWithSpeed(["HeadYaw"], [0.0], 0.3)
-
-
-    def _celebrating(self):
-        """Pepper celebra"""
-        self.motion.angleInterpolationWithSpeed(
-            ["LShoulderPitch", "RShoulderPitch", "LShoulderRoll", "RShoulderRoll"],
-            [-1.5, -1.5, 0.3, -0.3], 0.7
-        )
-        time.sleep(1.5)
-        self.posture.goToPosture("Stand", 0.5)
-
-
-    def _pointing(self, direction):
-        """Pepper indica una direzione"""
-        if direction == "right":
-            self.motion.angleInterpolationWithSpeed(
-                ["RShoulderPitch", "RShoulderRoll", "RElbowRoll"],
-                [0.0, -0.3, 0.0], 0.5
-            )
-        elif direction == "left":
-            self.motion.angleInterpolationWithSpeed(
-                ["LShoulderPitch", "LShoulderRoll", "LElbowRoll"],
-                [0.0, 0.3, 0.0], 0.5
-            )
-        else:
-            self.motion.angleInterpolationWithSpeed(
-                ["RShoulderPitch", "RElbowRoll"],
-                [-0.5, 0.0], 0.5
-            )
-        time.sleep(2.0)
-        self.posture.goToPosture("Stand", 0.5)
-
-
-    def _shrugging(self):
-        """Pepper alza le spalle"""
-        self.motion.angleInterpolationWithSpeed(
-            ["LShoulderPitch", "RShoulderPitch", "LShoulderRoll", "RShoulderRoll"],
-            [-0.5, -0.5, 0.5, -0.5], 0.5
-        )
-        self.motion.angleInterpolationWithSpeed(["HeadPitch"], [0.2], 0.3)
-        time.sleep(1.5)
-        self.posture.goToPosture("Stand", 0.5)
-
-
-    def _bowing(self):
-        """Pepper fa un inchino"""
-        self.motion.angleInterpolationWithSpeed(
-            ["HeadPitch", "HipPitch"],
-            [0.5, -0.5], 0.6
-        )
-        time.sleep(1.0)
-        self.motion.angleInterpolationWithSpeed(
-            ["HeadPitch", "HipPitch"],
-            [0.0, 0.0], 0.6
-        )
-
-
-    def _thinking(self, duration):
-        """Pepper assume posizione pensierosa"""
-        self.motion.angleInterpolationWithSpeed(
-            ["RShoulderPitch", "RShoulderRoll", "RElbowYaw", "RElbowRoll"],
-            [-0.5, -0.1, 1.0, 1.5], 0.5
-        )
-        self.motion.angleInterpolationWithSpeed(["HeadPitch", "HeadYaw"], [0.2, 0.3], 0.3)
-        time.sleep(duration)
-        self.posture.goToPosture("Stand", 0.5)
-
-
-    def _clapping(self, times):
-        """Pepper applaude"""
-        self.motion.angleInterpolationWithSpeed(
-            ["LShoulderPitch", "RShoulderPitch", "LElbowRoll", "RElbowRoll"],
-            [0.5, 0.5, -1.5, 1.5], 0.5
-        )
-        for _ in range(times):
-            self.motion.openHand("LHand")
-            self.motion.openHand("RHand")
-            time.sleep(0.15)
-            self.motion.closeHand("LHand")
-            self.motion.closeHand("RHand")
-            time.sleep(0.15)
-        self.posture.goToPosture("Stand", 0.5)
-
-
-
-
-    #Riferito all'action: Walking
-    def walking(self, goal_handle):
+    #Riferito all'action: moving
+    def moving(self, goal_handle):
         x = goal_handle.request.x
         y = goal_handle.request.y
         theta = goal_handle.request.theta
         
-        self.get_logger().info(f"Walking to ({x}, {y}, {theta})")
+        self.get_logger().info(f"moving to ({x}, {y}, {theta})")
+
 
 
 
         # Feedback iniziale
-        walking_feedback = Walking.Feedback()
-        walking_feedback.current_status = "Walking..."
-        goal_handle.publish_feedback(walking_feedback)
+        moving_feedback = Moving.Feedback()
+        moving_feedback.current_status = "moving..."
+        goal_handle.publish_feedback(moving_feedback)
+
 
 
 
         if self.motion is None:
-            self.get_logger().warn(f"[MOCK] Walking simulato: x={x}, y={y}, theta={theta}")
+            self.get_logger().warn(f"[MOCK] Moving simulato: x={x}, y={y}, theta={theta}")
             # Simula un po' di feedback
-            walking_feedback.current_status = "MOCK: Walking in progress..."
-            goal_handle.publish_feedback(walking_feedback)
+            moving_feedback.current_status = "MOCK: moving in progress..."
+            goal_handle.publish_feedback(moving_feedback)
             
             # Risultato mock
             goal_handle.succeed()
-            result = Walking.Result()
+            result = Moving.Result()
             result.success = True
-            walking_feedback.current_status = "MOCK: Walking completato"
+            moving_feedback.current_status = "MOCK: moving completato"
             return result
+
 
 
 
@@ -571,19 +449,408 @@ class QiUnipa2_movement(Node):
             
             # Quando il movimento è terminato:
             goal_handle.succeed()
-            result = Walking.Result()
+            result = Moving.Result()
             result.success = True
-            walking_feedback.current_status = "Walking completato"
+            moving_feedback.current_status = "Moving completato"
             return result
         except Exception as e:
-            self.get_logger().error(f"Errore walking: {e}")
+            self.get_logger().error(f"Errore moving: {e}")
             goal_handle.abort()
-            result = Walking.Result()
+            result = Moving.Result()
             result.success = False
-            walking_feedback.current_status = str(e)
+            moving_feedback.current_status = str(e)
             return result
         
 
+
+    # ========== ACTION: WALKING (CON OBSTACLE AVOIDANCE) ==========
+    def walking(self, goal_handle):
+        """
+        Action Walking - moveTo incrementale con obstacle avoidance via sonar
+        
+        Parametri:
+        - Soglia sonar: 0.10m (10cm) hardcoded
+        - Step forward: 0.25m
+        - Step recovery: 0.20m (alternanza destra/sinistra)
+        - Timeout: 300 sec (5 minuti)
+        - Feedback: ogni 1 secondo
+        """
+        
+        # ===== PARAMETRI GOAL =====
+        x = goal_handle.request.x
+        y = goal_handle.request.y
+        theta = goal_handle.request.theta
+        
+        # ===== COSTANTI HARDCODED =====
+        SONAR_THRESHOLD = 0.10  # 10cm
+        FORWARD_STEP = 0.50     # 50cm per step
+        RECOVERY_STEP = 0.20    # 20cm per evasione
+        MAX_TIMEOUT = 300.0     # 5 minuti
+        FEEDBACK_INTERVAL = 1.0 # 1 secondo
+        MAX_RECOVERY_ATTEMPTS = 20  # Max tentativi evasione prima di abort
+        
+        # ===== VARIABILI DI STATO =====
+        start_time = time.time()
+        last_feedback_time = start_time
+        
+        distance_covered = 0.0
+        obstacles_detected = 0
+        recovery_attempts = 0
+        
+        # Calcola distanza target totale
+        total_distance = math.sqrt(x**2 + y**2)
+
+        if total_distance < 0.01:
+            self.get_logger().error("Walking: distanza target troppo piccola (<1cm), aborting")
+            goal_handle.abort()
+            result = Walking.Result()
+            result.success = False
+            result.reason = "target_too_close"
+            return result
+        
+        self.get_logger().info(
+            f"╔═══════════════════════════════════════════════════════════════╗\n"
+            f"║ WALKING START                                                 ║\n"
+            f"╠═══════════════════════════════════════════════════════════════╣\n"
+            f"║ Target: x={x:.2f}m, y={y:.2f}m, theta={theta:.3f}rad          ║\n"
+            f"║ Total distance: {total_distance:.2f}m                         ║\n"
+            f"║ Sonar threshold: {SONAR_THRESHOLD}m                           ║\n"
+            f"║ Forward step: {FORWARD_STEP}m                                 ║\n"
+            f"║ Recovery step: {RECOVERY_STEP}m                               ║\n"
+            f"║ Timeout: {MAX_TIMEOUT}s                                       ║\n"
+            f"╚═══════════════════════════════════════════════════════════════╝"
+        )
+        
+        # ===== FEEDBACK INIZIALE =====
+        feedback = Walking.Feedback()
+        feedback.current_status = "initializing"
+        feedback.distance_covered = 0.0
+        feedback.remaining_distance = total_distance
+        feedback.front_sonar_distance = self.front_sonar if self.motion is not None else 2.5
+        feedback.obstacles_detected = 0
+        feedback.recovery_attempts = 0
+        feedback.elapsed_time = 0.0
+        goal_handle.publish_feedback(feedback)
+        
+        # ===== MOCK MODE =====
+        if self.motion is None:
+            self.get_logger().warn(
+                f"[MOCK] Walking simulato: x={x:.2f}m, y={y:.2f}m, theta={theta:.3f}rad\n"
+                f"       Total distance: {total_distance:.2f}m"
+            )
+            
+            # Simula rotazione iniziale se richiesta
+            if abs(theta) > 0.05:
+                feedback.current_status = "rotating"
+                feedback.elapsed_time = 0.5
+                goal_handle.publish_feedback(feedback)
+                time.sleep(0.5)
+            
+            # Simula movimento progressivo
+            mock_steps = max(3, int(total_distance / FORWARD_STEP))
+            for step in range(mock_steps):
+                # Calcola progresso
+                progress = (step + 1) / mock_steps
+                mock_distance = total_distance * progress
+                
+                feedback.current_status = "moving_forward"
+                feedback.distance_covered = mock_distance
+                feedback.remaining_distance = total_distance - mock_distance
+                feedback.front_sonar_distance = 2.5  # Mock sonar sempre libero
+                feedback.obstacles_detected = 0
+                feedback.recovery_attempts = 0
+                feedback.elapsed_time = time.time() - start_time
+                goal_handle.publish_feedback(feedback)
+                
+                time.sleep(0.3)  # Simula durata step
+            
+            # Completamento mock
+            feedback.current_status = "completed"
+            feedback.distance_covered = total_distance
+            feedback.remaining_distance = 0.0
+            feedback.front_sonar_distance = 2.5
+            feedback.obstacles_detected = 0
+            feedback.recovery_attempts = 0
+            feedback.elapsed_time = time.time() - start_time
+            goal_handle.publish_feedback(feedback)
+            
+            self.get_logger().info(
+                f"✅ [MOCK] Walking completato!\n"
+                f"       Distanza: {total_distance:.2f}m, Tempo: {feedback.elapsed_time:.1f}s"
+            )
+            
+            goal_handle.succeed()
+            result = Walking.Result()
+            result.success = True
+            result.reason = "reached"
+            result.distance_covered = total_distance
+            result.obstacles_detected = 0
+            result.recovery_attempts = 0
+            return result
+        
+        # ===== STEP 1: ROTAZIONE INIZIALE (se richiesta) =====
+        if abs(theta) > 0.05:  # Solo se rotazione > ~3°
+            feedback.current_status = "rotating"
+            goal_handle.publish_feedback(feedback)
+            
+            self.get_logger().info(f"⟲ Rotazione iniziale: {theta:.3f} rad ({math.degrees(theta):.1f}°)")
+            
+            try:
+                self.motion.moveTo(0.0, 0.0, theta)
+                time.sleep(0.5)  # Stabilizzazione
+            except Exception as e:
+                self.get_logger().error(f"❌ Errore rotazione: {e}")
+                goal_handle.abort()
+                result = Walking.Result()
+                result.success = False
+                result.reason = "error"
+                result.distance_covered = 0.0
+                result.obstacles_detected = obstacles_detected
+                result.recovery_attempts = recovery_attempts
+                return result
+        
+        # ===== STEP 2: MOVIMENTO INCREMENTALE CON OBSTACLE AVOIDANCE =====
+        try:
+            while distance_covered < total_distance:
+                
+                # ===== CHECK TIMEOUT =====
+                elapsed_time = time.time() - start_time
+                if elapsed_time > MAX_TIMEOUT:
+                    self.get_logger().warn(f"⏱️ TIMEOUT raggiunto ({MAX_TIMEOUT}s)")
+                    feedback.current_status = "timeout"
+                    goal_handle.publish_feedback(feedback)
+                    
+                    goal_handle.abort()
+                    result = Walking.Result()
+                    result.success = False
+                    result.reason = "timeout"
+                    result.distance_covered = distance_covered
+                    result.obstacles_detected = obstacles_detected
+                    result.recovery_attempts = recovery_attempts
+                    return result
+                
+                # ===== PUBLISH FEEDBACK (ogni secondo) =====
+                if time.time() - last_feedback_time >= FEEDBACK_INTERVAL:
+                    feedback.current_status = "moving_forward"
+                    feedback.distance_covered = distance_covered
+                    feedback.remaining_distance = max(0.0, total_distance - distance_covered)
+                    feedback.front_sonar_distance = self.front_sonar
+                    feedback.obstacles_detected = obstacles_detected
+                    feedback.recovery_attempts = recovery_attempts
+                    feedback.elapsed_time = elapsed_time
+                    goal_handle.publish_feedback(feedback)
+                    last_feedback_time = time.time()
+                
+                # ===== CHECK SONAR =====
+                current_sonar = self.front_sonar
+                
+                if current_sonar < SONAR_THRESHOLD:
+                    # ===== OSTACOLO RILEVATO =====
+                    obstacles_detected += 1
+                    
+                    self.get_logger().warn(
+                        f"⚠️  OSTACOLO RILEVATO!\n"
+                        f"    Sonar: {current_sonar:.3f}m < {SONAR_THRESHOLD}m\n"
+                        f"    Tentativo evasione #{recovery_attempts + 1}"
+                    )
+                    
+                    feedback.current_status = "obstacle_detected"
+                    feedback.front_sonar_distance = current_sonar
+                    feedback.obstacles_detected = obstacles_detected
+                    goal_handle.publish_feedback(feedback)
+                    
+                    # ===== LOOP RECOVERY (alternanza destra/sinistra) =====
+                    recovery_success = False
+                    local_recovery_attempts = 0
+                    
+                    while not recovery_success and local_recovery_attempts < 10:
+                        
+                        # Check se troppi tentativi totali
+                        if recovery_attempts >= MAX_RECOVERY_ATTEMPTS:
+                            self.get_logger().error(
+                                f"❌ Max recovery attempts raggiunto ({MAX_RECOVERY_ATTEMPTS})"
+                            )
+                            feedback.current_status = "obstacle_blocked"
+                            goal_handle.publish_feedback(feedback)
+                            
+                            goal_handle.abort()
+                            result = Walking.Result()
+                            result.success = False
+                            result.reason = "obstacle_blocked"
+                            result.distance_covered = distance_covered
+                            result.obstacles_detected = obstacles_detected
+                            result.recovery_attempts = recovery_attempts
+                            return result
+                        
+                        # DETERMINA DIREZIONE (alternanza)
+                        if recovery_attempts % 2 == 0:
+                            # DESTRA
+                            recovery_y = -RECOVERY_STEP
+                            direction = "DESTRA"
+                        else:
+                            # SINISTRA
+                            recovery_y = +RECOVERY_STEP
+                            direction = "SINISTRA"
+                        
+                        self.get_logger().info(
+                            f"↔️  Evasione {direction}: spostamento laterale di {abs(recovery_y):.2f}m"
+                        )
+                        
+                        feedback.current_status = "evading_obstacle"
+                        feedback.recovery_attempts = recovery_attempts
+                        goal_handle.publish_feedback(feedback)
+                        
+                        # ESEGUI SPOSTAMENTO LATERALE
+                        try:
+                            self.motion.moveTo(0.0, recovery_y, 0.0)
+                            time.sleep(0.5)  # Stabilizzazione
+                            recovery_attempts += 1
+                            local_recovery_attempts += 1
+                        except Exception as e:
+                            self.get_logger().error(f"❌ Errore evasione: {e}")
+                            goal_handle.abort()
+                            result = Walking.Result()
+                            result.success = False
+                            result.reason = "error"
+                            result.distance_covered = distance_covered
+                            result.obstacles_detected = obstacles_detected
+                            result.recovery_attempts = recovery_attempts
+                            return result
+                        
+                        # RICONTROLLA SONAR
+                        time.sleep(0.3)  # Attendi lettura sonar aggiornata
+                        new_sonar = self.front_sonar
+                        
+                        self.get_logger().info(
+                            f"   Sonar dopo evasione: {new_sonar:.3f}m "
+                            f"({'✓ LIBERO' if new_sonar >= SONAR_THRESHOLD else '✗ BLOCCATO'})"
+                        )
+                        
+                        if new_sonar >= SONAR_THRESHOLD:
+                            # ✅ PERCORSO LIBERO
+                            recovery_success = True
+                            feedback.current_status = "obstacle_cleared"
+                            feedback.front_sonar_distance = new_sonar
+                            goal_handle.publish_feedback(feedback)
+                            
+                            self.get_logger().info(
+                                f"✅ Ostacolo superato dopo {local_recovery_attempts} tentativi"
+                            )
+                            break
+                        else:
+                            # ❌ ANCORA BLOCCATO - Riprova dall'altro lato
+                            self.get_logger().warn(
+                                f"   Ancora bloccato, riprovo dall'altro lato..."
+                            )
+                            time.sleep(0.2)
+                    
+                    # Se esaurito loop recovery senza successo
+                    if not recovery_success:
+                        self.get_logger().error(
+                            f"❌ Impossibile superare ostacolo dopo {local_recovery_attempts} tentativi"
+                        )
+                        feedback.current_status = "obstacle_blocked"
+                        goal_handle.publish_feedback(feedback)
+                        
+                        goal_handle.abort()
+                        result = Walking.Result()
+                        result.success = False
+                        result.reason = "obstacle_blocked"
+                        result.distance_covered = distance_covered
+                        result.obstacles_detected = obstacles_detected
+                        result.recovery_attempts = recovery_attempts
+                        return result
+                
+                else:
+                    # ===== PERCORSO LIBERO - AVANZA =====
+                    remaining = total_distance - distance_covered
+                    step_distance = min(FORWARD_STEP, remaining)
+                    
+                    # Normalizza step proporzionale a x e y
+                    if total_distance > 0:
+                        step_x = (x / total_distance) * step_distance
+                        step_y = (y / total_distance) * step_distance
+                    else:
+                        step_x = 0.0
+                        step_y = 0.0
+                    
+                    self.get_logger().info(
+                        f"→  Avanzando: {step_distance:.2f}m "
+                        f"(x={step_x:.2f}, y={step_y:.2f}) | "
+                        f"Sonar: {current_sonar:.2f}m"
+                    )
+                    
+                    feedback.current_status = "moving_forward"
+                    goal_handle.publish_feedback(feedback)
+                    
+                    # ESEGUI MOVIMENTO
+                    try:
+                        self.motion.moveTo(step_x, step_y, 0.0)
+                        time.sleep(0.4)  # Stabilizzazione
+                        distance_covered += step_distance
+                    except Exception as e:
+                        self.get_logger().error(f"❌ Errore movimento: {e}")
+                        goal_handle.abort()
+                        result = Walking.Result()
+                        result.success = False
+                        result.reason = "error"
+                        result.distance_covered = distance_covered
+                        result.obstacles_detected = obstacles_detected
+                        result.recovery_attempts = recovery_attempts
+                        return result
+                
+                # Breve pausa prima del prossimo check
+                time.sleep(0.1)
+        
+        except Exception as e:
+            self.get_logger().error(f"❌ Errore walking loop: {e}")
+            goal_handle.abort()
+            result = Walking.Result()
+            result.success = False
+            result.reason = "error"
+            result.distance_covered = distance_covered
+            result.obstacles_detected = obstacles_detected
+            result.recovery_attempts = recovery_attempts
+            return result
+        
+        # ===== COMPLETAMENTO =====
+        elapsed_time = time.time() - start_time
+        success = distance_covered >= (total_distance * 0.8)  # 80% = successo
+        
+        self.get_logger().info(
+            f"╔═══════════════════════════════════════════════════════════════╗\n"
+            f"║ WALKING COMPLETED                                             ║\n"
+            f"╠═══════════════════════════════════════════════════════════════╣\n"
+            f"║ Success: {success}                                            ║\n"
+            f"║ Distance covered: {distance_covered:.2f}m / {total_distance:.2f}m ({(distance_covered/total_distance*100):.1f}%) ║\n"
+            f"║ Obstacles detected: {obstacles_detected}                      ║\n"
+            f"║ Recovery attempts: {recovery_attempts}                        ║\n"
+            f"║ Elapsed time: {elapsed_time:.1f}s                             ║\n"
+            f"╚═══════════════════════════════════════════════════════════════╝"
+        )
+        
+        feedback.current_status = "completed" if success else "failed"
+        feedback.distance_covered = distance_covered
+        feedback.remaining_distance = 0.0
+        feedback.front_sonar_distance = self.front_sonar
+        feedback.obstacles_detected = obstacles_detected
+        feedback.recovery_attempts = recovery_attempts
+        feedback.elapsed_time = elapsed_time
+        goal_handle.publish_feedback(feedback)
+        
+        if success:
+            goal_handle.succeed()
+        else:
+            goal_handle.abort()
+        
+        result = Walking.Result()
+        result.success = success
+        result.reason = "reached" if success else "incomplete"
+        result.distance_covered = distance_covered
+        result.obstacles_detected = obstacles_detected
+        result.recovery_attempts = recovery_attempts
+        
+        return result
 
 
 
@@ -600,6 +867,7 @@ class QiUnipa2_movement(Node):
         
         self.get_logger().info(f"Navigating to ({target_x}, {target_y}), use_map={use_map}")
 
+
         # Feedback iniziale
         feedback = Navigating.Feedback()
         feedback.status = "planning"
@@ -607,6 +875,7 @@ class QiUnipa2_movement(Node):
         feedback.current_y = 0.0
         feedback.distance_remaining = 0.0
         goal_handle.publish_feedback(feedback)
+
 
         # ===== MOCK MODE =====
         if self.motion is None or self.navigation is None:
@@ -627,6 +896,7 @@ class QiUnipa2_movement(Node):
             result.final_y = target_y
             result.distance_to_target = 0.0
             return result
+
 
         # ===== ESECUZIONE REALE =====
         try:
@@ -723,6 +993,7 @@ class QiUnipa2_movement(Node):
             return result
 
 
+
         except Exception as e:
             self.get_logger().error(f"Errore: {e}")
             goal_handle.abort()
@@ -752,257 +1023,6 @@ class QiUnipa2_movement(Node):
 
 
 
-    # ========== SEEKING ACTION ==========
-    # Aggregazione di Tracking + Navigazione continua con obstacle avoidance per seguire un target
-    def seeking(self, goal_handle):
-        """
-        Action callback per SEEKING: segue un target utilizzando ALTracker + ALNavigation
-        
-        Goal:
-            - target_type: "Face", "People", "LandMark"
-            - approach_distance: distanza a cui fermarsi dal target (default: 1.0m)
-        
-        Feedback:
-            - status_message: stato attuale ("searching", "found", "following", "approaching")
-            - distance_remaining: distanza corrente dal target
-            - current_x, current_y: coordinate attuali del target
-        
-        Result:
-            - success: True se target raggiunto, False altrimenti
-            - status: "reached", "lost", "timeout", "blocked"
-            - final_distance: distanza finale dal target
-        """
-        
-        target_type = goal_handle.request.target_type
-        approach_distance = goal_handle.request.approach_distance if goal_handle.request.approach_distance > 0 else 1.0
-        
-        self.get_logger().info(f"Seeking started: target_type={target_type}, approach_distance={approach_distance}m")
-        
-        # Feedback iniziale
-        feedback = Seeking.Feedback()
-        feedback.status_message = "searching"
-        feedback.distance_remaining = 0.0
-        feedback.current_x = 0.0
-        feedback.current_y = 0.0
-        goal_handle.publish_feedback(feedback)
-        
-        # ===== MOCK MODE =====
-        if self.motion is None or self.tracker is None or self.navigation is None:
-            self.get_logger().warn("[MOCK] Seeking simulato")
-            
-            feedback.status_message = "MOCK: found"
-            feedback.distance_remaining = 0.5
-            feedback.current_x = 1.0
-            feedback.current_y = 0.5
-            goal_handle.publish_feedback(feedback)
-            
-            goal_handle.succeed()
-            result = Seeking.Result()
-            result.success = True
-            result.status = "reached"
-            result.final_distance = 0.0
-            return result
-        
-        # ===== ESECUZIONE REALE =====
-        try:
-            # Step 1: Setup postura
-            self.get_logger().info("Setting up posture...")
-            try:
-                self.posture.goToPosture("Stand", 0.5)
-            except:
-                pass
-            
-            time.sleep(1.0)
-            
-            # Step 2: Avvia tracking
-            self.get_logger().info(f"Starting tracking for {target_type}...")
-            try:
-                # Registra target
-                if target_type == "Face":
-                    self.tracker.registerTarget("Face", 0.15)
-                elif target_type == "People":
-                    self.tracker.registerTarget("People", 0.3)
-                elif target_type == "LandMark":
-                    self.tracker.registerTarget("LandMark", 0.08)
-                else:
-                    self.get_logger().error(f"Target type {target_type} non supportato")
-                    goal_handle.abort()
-                    result = Seeking.Result()
-                    result.success = False
-                    result.status = "invalid_target"
-                    result.final_distance = 0.0
-                    return result
-                
-                # Attiva tracking - SOLO TESTA (non "Move")
-                # Perché il corpo lo muove navigating
-                self.tracker.setMode("Head")
-                self.tracker.track(target_type)
-                
-            except Exception as e:
-                self.get_logger().error(f"Errore avvio tracking: {e}")
-                goal_handle.abort()
-                result = Seeking.Result()
-                result.success = False
-                result.status = "tracking_error"
-                result.final_distance = 0.0
-                return result
-            
-            self._tracking_active = True
-            
-            # Step 3: Loop principale di seeking con navigating
-            timeout_counter = 0
-            max_timeout = 20  # 20 secondi di perdita tracking (1s per loop)
-            loop_count = 0
-            max_loops = 120  # Timeout massimo 2 minuti
-            
-            while loop_count < max_loops:
-                loop_count += 1
-                
-                # Ottieni posizione target
-                target_position = self.get_tracked_position()
-                
-                if target_position is None:
-                    # Prova service call come backup
-                    target_position = self.request_tracked_object_coordinates()
-                
-                if target_position is None:
-                    # Tracking perso
-                    timeout_counter += 1
-                    
-                    feedback.status_message = "lost"
-                    feedback.distance_remaining = -1.0
-                    goal_handle.publish_feedback(feedback)
-                    
-                    self.get_logger().warn(f"Tracking lost ({timeout_counter}/{max_timeout})")
-                    
-                    if timeout_counter >= max_timeout:
-                        self.get_logger().error("Target perso definitivamente")
-                        goal_handle.abort()
-                        
-                        result = Seeking.Result()
-                        result.success = False
-                        result.status = "lost"
-                        result.final_distance = -1.0
-                        return result
-                    
-                    time.sleep(1.0)
-                    continue
-                
-                # Target trovato
-                timeout_counter = 0
-                
-                x = target_position['x']
-                y = target_position['y']
-                z = target_position.get('z', 0.0)
-                distance = math.sqrt(x**2 + y**2 + z**2)
-                
-                feedback.current_x = x
-                feedback.current_y = y
-                feedback.distance_remaining = distance
-                
-                # Verifica se raggiunto
-                if distance < approach_distance:
-                    feedback.status_message = "reached"
-                    goal_handle.publish_feedback(feedback)
-                    
-                    self.get_logger().info(f"Target raggiunto! Distance: {distance:.2f}m")
-                    
-                    # Stop tracking
-                    self._tracking_active = False
-                    try:
-                        self.tracker.stopTracker()
-                        self.tracker.unregisterAllTargets()
-                    except:
-                        pass
-                    
-                    # Successo
-                    goal_handle.succeed()
-                    result = Seeking.Result()
-                    result.success = True
-                    result.status = "reached"
-                    result.final_distance = distance
-                    return result
-                
-                # Naviga verso target con obstacle avoidance
-                feedback.status_message = "approaching"
-                goal_handle.publish_feedback(feedback)
-                
-                # Calcola target intermedio (non tutto il percorso)
-                # Cosi possiamo aggiornare piu spesso
-                max_step = 0.5  # Max 50cm per step
-                
-                if distance > max_step:
-                    # Normalizza e scala a max_step
-                    factor = max_step / distance
-                    nav_x = x * factor
-                    nav_y = y * factor
-                else:
-                    # Se vicino, vai diretto
-                    nav_x = x
-                    nav_y = y
-                
-                # Usa navigating con coordinate relative
-                self.get_logger().info(f"Navigating step: distance={distance:.2f}m, target=({nav_x:.2f}, {nav_y:.2f})")
-                
-                try:
-                    # navigateTo e bloccante MA con obstacle avoidance
-                    success = self.navigation.navigateTo(nav_x, nav_y)
-                    
-                    if not success:
-                        # Bloccato da ostacolo
-                        self.get_logger().warn("Navigazione bloccata da ostacolo")
-                        
-                        # Prova a girare attorno
-                        time.sleep(0.5)
-                        
-                        # Riprova nella prossima iterazione con nuove coordinate
-                        continue
-                        
-                except Exception as e:
-                    self.get_logger().error(f"Errore navigazione: {e}")
-                    goal_handle.abort()
-                    
-                    result = Seeking.Result()
-                    result.success = False
-                    result.status = "blocked"
-                    result.final_distance = distance
-                    return result
-                
-                # Piccola pausa prima di aggiornare target
-                # (navigateTo e bloccante, quindi arriviamo qui solo quando finito)
-                time.sleep(0.2)
-            
-            # Timeout massimo raggiunto
-            self.get_logger().error("Timeout massimo seeking raggiunto")
-            goal_handle.abort()
-            
-            result = Seeking.Result()
-            result.success = False
-            result.status = "timeout"
-            result.final_distance = -1.0
-            return result
-        
-        except Exception as e:
-            self.get_logger().error(f"Errore seeking: {e}")
-            goal_handle.abort()
-            
-            result = Seeking.Result()
-            result.success = False
-            result.status = "error"
-            result.final_distance = -1.0
-            return result
-        
-        finally:
-            # Cleanup
-            self._tracking_active = False
-            try:
-                self.tracker.stopTracker()
-                self.tracker.unregisterAllTargets()
-            except:
-                pass
-
-
-
 
 def main(args=None):
     rclpy.init(args=args)
@@ -1010,6 +1030,7 @@ def main(args=None):
     rclpy.spin(node)
     rclpy.shutdown()
     
+
 
 
 
