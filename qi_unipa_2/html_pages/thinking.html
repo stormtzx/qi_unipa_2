@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Pepper - Sto pensando</title>
+  <style>
+    /* ------------------------------------ */
+    /* EFFETTI GLOBALI (Sfondo e Particelle) */
+    /* ------------------------------------ */
+    body {
+      background: linear-gradient(45deg, #2c3e50, #34495e, #2c3e50); 
+      background-size: 400% 400%; 
+      animation: gradientAnimation 15s ease infinite; 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      overflow: hidden; 
+      position: relative; 
+    }
+
+    @keyframes gradientAnimation {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    body::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      box-shadow: 
+        0 0 150px 70px rgba(0, 170, 255, 0.1),
+        -100px -100px 100px 50px rgba(0, 255, 170, 0.1),
+        100px 100px 120px 60px rgba(255, 170, 0, 0.1),
+        -50px 50px 80px 40px rgba(255, 0, 0, 0.1);
+      animation: particleMovement 25s infinite alternate ease-in-out;
+      pointer-events: none; 
+      opacity: 0.7; 
+    }
+
+    @keyframes particleMovement {
+      0% { transform: translate(0, 0) rotate(0deg); opacity: 0.7; }
+      25% { transform: translate(10vw, 15vh) rotate(15deg); opacity: 0.8; }
+      50% { transform: translate(-10vw, -10vh) rotate(-10deg); opacity: 0.6; }
+      75% { transform: translate(5vw, -15vh) rotate(5deg); opacity: 0.8; }
+      100% { transform: translate(0, 0) rotate(0deg); opacity: 0.7; }
+    }
+
+    /* ------------------------------------ */
+    /* TESTO E CONTENITORE CENTRALE         */
+    /* ------------------------------------ */
+    .thinking-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      z-index: 1; 
+    }
+
+    .thinking-text {
+      font-size: 3.2em; 
+      font-weight: bold;
+      color: #b0c4de; 
+      margin-bottom: 30px; 
+      animation: 
+        colorPulse 4s infinite alternate, 
+        subtleOpacity 2s infinite alternate; 
+      text-shadow: 0 0 8px rgba(176, 196, 222, 0.4); 
+    }
+
+    @keyframes colorPulse {
+      0%   { color: #b0c4de; } 
+      50%  { color: #9abed6; } 
+      100% { color: #b0c4de; }
+    }
+
+    @keyframes subtleOpacity {
+      0% { opacity: 1; }
+      50% { opacity: 0.9; }
+      100% { opacity: 1; }
+    }
+
+    .ellipsis::after {
+      content: ' .';
+      animation: ellipsis-animation 1.8s infinite steps(4); 
+    }
+
+    @keyframes ellipsis-animation {
+      0%   { content: ' .'; }
+      25%  { content: ' ..'; }
+      50%  { content: ' ...'; }
+      75%  { content: ' ....'; }
+      100% { content: ' .'; }
+    }
+
+    /* ------------------------------------ */
+    /* ROBOT                 */
+    /* ------------------------------------ */
+    .robot-army {
+      display: flex;
+      gap: 30px; /* Spazio aumentato tra i robot */
+      margin-top: 20px;
+    }
+
+    .robot {
+      width: 40px; /* Larghezza della testa */
+      height: 40px; 
+      background-color: #f0f0f0; /* Colore tipico di Pepper (Bianco/Grigio chiaro) */
+      border: 2px solid #333; /* Bordo per definizione */
+      border-radius: 50%; /* Testa rotonda */
+      position: relative;
+      animation: 
+        floatRobot 2s infinite alternate ease-in-out; /* Robot galleggiano */
+    }
+
+    /* Ritarda l'animazione per ogni robot */
+    .robot:nth-child(2) { animation-delay: 0.5s; }
+    .robot:nth-child(3) { animation-delay: 1s; }
+
+
+    /* Corpo affusolato (T-Shirt/Torace) */
+    .robot::before {
+      content: '';
+      position: absolute;
+      top: 90%; 
+      left: 0;
+      width: 100%;
+      height: 30px; 
+      background-color: #333333; /* Parte superiore scura */
+      border-radius: 5px;
+      clip-path: polygon(0% 0%, 100% 0%, 80% 100%, 20% 100%); /* Forma a tronco di piramide rovesciata/affusolata */
+      z-index: -1; /* Mettilo dietro la testa */
+      transition: background-color 0.5s;
+    }
+
+    /* Base di mobilità (Rotelle) */
+    .robot::after {
+      content: '';
+      position: absolute;
+      top: 150%; 
+      left: -5px;
+      width: 50px; /* Più largo del corpo */
+      height: 10px;
+      background-color: #888888; /* Base grigia */
+      border-radius: 10px 10px 0 0;
+    }
+
+    /* Occhio/Schermo che simula l'attività */
+    .robot-eye {
+      position: absolute;
+      top: 15px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 10px;
+      height: 10px;
+      background-color: #00aaff;
+      border-radius: 50%;
+      box-shadow: 0 0 5px #00aaff, 0 0 10px rgba(0, 170, 255, 0.7); 
+      animation: pulseEye 1.2s infinite alternate;
+    }
+
+    /* Animazione di galleggiamento */
+    @keyframes floatRobot {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(-10px); }
+    }
+
+    /* Animazione di pulsazione dell'occhio (simula l'attività) */
+    @keyframes pulseEye {
+      0% { opacity: 0.7; transform: translateX(-50%) scale(1); box-shadow: 0 0 5px #00aaff; }
+      100% { opacity: 1; transform: translateX(-50%) scale(1.2); box-shadow: 0 0 15px #00aaff; }
+    }
+
+  </style>
+</head>
+<body>
+  <div class="thinking-container">
+    <div class="thinking-text ellipsis">Sto pensando</div>
+    <div class="robot-army">
+      <div class="robot"><div class="robot-eye"></div></div>
+      <div class="robot"><div class="robot-eye"></div></div>
+      <div class="robot"><div class="robot-eye"></div></div>
+    </div>
+  </div>
+</body>
+</html>

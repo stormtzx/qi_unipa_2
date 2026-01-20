@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test MiniCog - Parte 2: Orologio</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background-color: #f0f0f0;
+      text-align: center;
+      padding-top: 40px;
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+    .progress {
+      font-size: 14px;
+      color: #888;
+      margin-bottom: 30px;
+    }
+    .info {
+      font-size: 16px;
+      color: #555;
+      margin-bottom: 30px;
+    }
+    .orologio-container {
+      background-color: white;
+      border-radius: 50%;
+      width: 350px;
+      height: 350px;
+      margin: 30px auto;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      position: relative;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      border-radius: 50%;
+    }
+    .istruzioni {
+      font-size: 14px;
+      color: #555;
+      margin: 20px 0;
+      font-style: italic;
+    }
+    .controls {
+      margin: 20px auto;
+      max-width: 600px;
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      flex-wrap: wrap;
+    }
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    .control-label {
+      font-size: 14px;
+      font-weight: bold;
+      color: #333;
+    }
+    .arrow-buttons {
+      display: flex;
+      gap: 5px;
+    }
+    .arrow-btn {
+      width: 40px;
+      height: 40px;
+      font-size: 20px;
+      background-color: #e8f4f8;
+      color: #003366;
+      border: 2px solid #4CAF50;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .arrow-btn:hover {
+      background-color: #4CAF50;
+      color: white;
+      transform: scale(1.1);
+    }
+    .arrow-btn:active {
+      transform: scale(0.95);
+    }
+    .button-container {
+      margin-top: 30px;
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    button {
+      font-size: 16px;
+      padding: 10px 25px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+    .punteggio {
+      margin-top: 20px;
+      font-size: 18px;
+      font-weight: bold;
+      color: #1565c0;
+    }
+    #message {
+      margin-top: 20px;
+      font-size: 16px;
+      font-weight: bold;
+    }
+    .message-success {
+      color: #2e7d32;
+    }
+    .message-error {
+      color: #c62828;
+    }
+    .message-warning {
+      color: #f57f17;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Test MiniCog - Parte 2</h1>
+  <div class="progress">Progresso: 2/4</div>
+  
+  <div class="info">
+    <p><strong>Imposta le lancette dell'orologio alle 11:10</strong></p>
+    <p>Clicca sui tasti in basso per muovere le lancette e posizionarle sull'orario corretto</p>
+  </div>
+
+  <div class="orologio-container">
+    <canvas id="orologio-canvas" width="400" height="400"></canvas>
+  </div>
+
+  <div class="istruzioni">
+    <p>Lancetta corta (nera): ore</p>
+    <p>Lancetta lunga (rossa): minuti</p>
+  </div>
+
+  <div class="controls">
+    <div class="control-group">
+      <div class="control-label">📍 Ore (frecce)</div>
+      <div class="arrow-buttons">
+        <button class="arrow-btn" onclick="increaseOre()">➕</button>
+        <button class="arrow-btn" onclick="decreaseOre()">➖</button>
+      </div>
+    </div>
+    
+    <div class="control-group">
+      <div class="control-label">⏱️ Minuti (frecce)</div>
+      <div class="arrow-buttons">
+        <button class="arrow-btn" onclick="increaseMinuti()">➕</button>
+        <button class="arrow-btn" onclick="decreaseMinuti()">➖</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="punteggio" id="punteggio"></div>
+
+  <div class="button-container">
+    <button onclick="valutaEContinua()">Valuta e Continua</button>
+    <button onclick="resetOrologio()">Ripristina</button>
+  </div>
+
+  <div id="message"></div>
+  <script type="text/javascript">
+
+
+
+const canvas = document.getElementById('orologio-canvas');
+const ctx = canvas.getContext('2d');
+
+const centerX = canvas.width / 2;
+const centerY = canvas.height / 2;
+const radius = Math.min(centerX, centerY) - 10;
+
+let angleOre = -Math.PI / 2;
+let angleMinuti = -Math.PI / 2;
+let selectedHand = null;
+let isDrawing = false;
+let redirectUrl = null;
+let postSuccess = false;
+
+const targetOre = 11;
+const targetMinuti = 10;
+
+// ✅ FIX: Funzione per convertire angolo in ore/minuti CORRETTI
+function angleToTime(angle) {
+  let normalizedAngle = ((angle + Math.PI / 2) % (2 * Math.PI) + (2 * Math.PI)) % (2 * Math.PI);
+  let degrees = (normalizedAngle * 180 / Math.PI);
+  let ore = Math.round(degrees / 30) % 12;
+  let minuti = Math.round(degrees / 6) % 60;
+  
+  return { ore, minuti };
+}
+
+// ✅ FIX: Funzione inversa per convertire ore/minuti in angolo
+function timeToAngle(value, isOre) {
+  if (isOre) {
+    return (value * 30 - 90) * (Math.PI / 180);
+  } else {
+    return (value * 6 - 90) * (Math.PI / 180);
+  }
+}
+
+function disegnaOrologio() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+  ctx.fill();
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  ctx.font = 'bold 20px Arial';
+  ctx.fillStyle = '#000';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  for (let i = 1; i <= 12; i++) {
+    const angle = (i - 3) * (Math.PI / 6);
+    const x = centerX + (radius - 40) * Math.cos(angle);
+    const y = centerY + (radius - 40) * Math.sin(angle);
+    ctx.fillText(i.toString(), x, y);
+  }
+
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, 8, 0, 2 * Math.PI);
+  ctx.fill();
+
+  disegnaLancetta(angleOre, radius * 0.5, 6, '#000');
+  disegnaLancetta(angleMinuti, radius * 0.7, 4, '#ff0000');
+}
+
+function disegnaLancetta(angle, length, width, color) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(centerX, centerY);
+  const x = centerX + length * Math.cos(angle);
+  const y = centerY + length * Math.sin(angle);
+  ctx.lineTo(x, y);
+  ctx.stroke();
+}
+
+canvas.addEventListener('mousedown', function(e) {
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  const dx = x - centerX;
+  const dy = y - centerY;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+
+  if (distance < radius * 0.7 + 20 && distance > radius * 0.5 - 20) {
+    selectedHand = 'ore';
+    isDrawing = true;
+  } else if (distance < radius * 0.8 && distance > radius * 0.4) {
+    selectedHand = 'minuti';
+    isDrawing = true;
+  }
+});
+
+canvas.addEventListener('mousemove', function(e) {
+  if (!isDrawing || !selectedHand) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  const dx = x - centerX;
+  const dy = y - centerY;
+  let angle = Math.atan2(dy, dx);
+
+  if (selectedHand === 'ore') {
+    angleOre = angle;
+  } else if (selectedHand === 'minuti') {
+    angleMinuti = angle;
+  }
+
+  disegnaOrologio();
+});
+
+canvas.addEventListener('mouseup', function() {
+  isDrawing = false;
+  selectedHand = null;
+});
+
+canvas.addEventListener('mouseleave', function() {
+  isDrawing = false;
+  selectedHand = null;
+});
+
+function increaseOre() {
+  const { ore } = angleToTime(angleOre);
+  const newOre = (ore + 1) % 12;
+  angleOre = timeToAngle(newOre, true);
+  disegnaOrologio();
+  const { ore: displayOre, minuti: displayMinuti } = angleToTime(angleOre);
+  console.log(`[FRECCE] Ore aumentate: ${displayOre}:${displayMinuti < 10 ? '0' : ''}${displayMinuti}`);
+}
+
+function decreaseOre() {
+  const { ore } = angleToTime(angleOre);
+  const newOre = (ore - 1 + 12) % 12;
+  angleOre = timeToAngle(newOre, true);
+  disegnaOrologio();
+  const { ore: displayOre, minuti: displayMinuti } = angleToTime(angleOre);
+  console.log(`[FRECCE] Ore diminuite: ${displayOre}:${displayMinuti < 10 ? '0' : ''}${displayMinuti}`);
+}
+
+function increaseMinuti() {
+  const { ore, minuti } = angleToTime(angleMinuti);
+  const newMinuti = (minuti + 1) % 60;
+  angleMinuti = timeToAngle(newMinuti, false);
+  disegnaOrologio();
+  const { ore: displayOre, minuti: displayMinuti } = angleToTime(angleMinuti);
+  console.log(`[FRECCE] Minuti aumentati: ${displayOre}:${displayMinuti < 10 ? '0' : ''}${displayMinuti}`);
+}
+
+function decreaseMinuti() {
+  const { ore, minuti } = angleToTime(angleMinuti);
+  const newMinuti = (minuti - 1 + 60) % 60;
+  angleMinuti = timeToAngle(newMinuti, false);
+  disegnaOrologio();
+  const { ore: displayOre, minuti: displayMinuti } = angleToTime(angleMinuti);
+  console.log(`[FRECCE] Minuti diminuiti: ${displayOre}:${displayMinuti < 10 ? '0' : ''}${displayMinuti}`);
+}
+
+// ✅ CORRETTO: Punteggi 7/3/0
+function valutaOrologio() {
+  const { ore: oreImpostate, minuti: minutiImpostati } = angleToTime(angleOre);
+  const { minuti: minutiManoImpostati } = angleToTime(angleMinuti);
+
+  console.log(`[MINICOG-PARTE2] Valutazione: ${oreImpostate}:${minutiManoImpostati < 10 ? '0' : ''}${minutiManoImpostati}`);
+
+  let score = 0;
+
+  const oreCorretta = (oreImpostate === targetOre);
+  const minutiCorretti = Math.abs(minutiManoImpostati - targetMinuti) <= 2;
+
+  if (oreCorretta && minutiCorretti) {
+    score = 7;
+    console.log('[MINICOG-PARTE2] ✅ Risposta corretta! Score: 7');
+  } else if (oreCorretta || minutiCorretti) {
+    score = 3;
+    console.log('[MINICOG-PARTE2] ⚠️ Risposta parziale! Score: 3');
+  } else {
+    score = 0;
+    console.log('[MINICOG-PARTE2] ❌ Risposta sbagliata! Score: 0');
+  }
+
+  return {
+    score: score,
+    ore_impostate: oreImpostate,
+    minuti_impostati: minutiManoImpostati
+  };
+}
+
+function valutaEContinua() {
+  console.log('[MINICOG-PARTE2] Utente valuta, invio dati...');
+
+  const valutazione = valutaOrologio();
+
+  const minicogDataStr = sessionStorage.getItem('minicog_test');
+  let minicogData = minicogDataStr ? JSON.parse(minicogDataStr) : {};
+
+  minicogData.parte2 = valutazione;
+  sessionStorage.setItem('minicog_test', JSON.stringify(minicogData));
+
+  const payload = {
+    formtype: 'minicog_parte2',
+    score: valutazione.score,
+    ore_impostate: valutazione.ore_impostate,
+    minuti_impostati: valutazione.minuti_impostati,
+    timestamp: new Date().toISOString()
+  };
+
+  console.log('[MINICOG-PARTE2] Invio payload:', JSON.stringify(payload, null, 2));
+
+  let messaggio = '';
+  if (valutazione.score === 7) {
+    messaggio = '✅ Perfetto! Ottimo lavoro!';
+  } else if (valutazione.score === 3) {
+    messaggio = '⚠️ Quasi corretto!';
+  } else {
+    messaggio = '❌ Prova di nuovo!';
+  }
+  alert(`${messaggio}\nScore: ${valutazione.score} punti`);
+
+  document.querySelectorAll('button').forEach(btn => btn.disabled = true);
+  document.getElementById('message').innerHTML = '<span class="message-warning">⏳ Invio dati al server...</span>';
+
+  postSuccess = false;
+  redirectUrl = null;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 2000);
+
+  fetch('/submit_form', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    signal: controller.signal
+  })
+  .then(function(response) {
+    clearTimeout(timeoutId);
+    if (!response.ok) {
+      throw new Error(`Errore HTTP ${response.status}`);
+    }
+    return response.json();
+  })
+  .then(function(data) {
+    console.log('[MINICOG-PARTE2] ✅ Response dal server:', data);
+
+    if (data.status === 'success') {
+      postSuccess = true;
+      redirectUrl = data.redirect_url || 'test_minicog_parte3.html';
+      console.log('[MINICOG-PARTE2] POST OK, redirect salvato:', redirectUrl);
+      document.getElementById('message').innerHTML = '<span class="message-success">✅ Dati ricevuti! Pepper sta parlando...</span>';
+    } else {
+      throw new Error(data.message || 'Errore sconosciuto dal server');
+    }
+  })
+  .catch(function(error) {
+    clearTimeout(timeoutId);
+    
+    if (error.name === 'AbortError') {
+      console.warn('[MINICOG-PARTE2] ⚠️ TIMEOUT POST');
+      document.getElementById('message').innerHTML = '<span class="message-warning">⚠️ Server lento, ma continuo...</span>';
+    } else if (error instanceof TypeError) {
+      console.error('[MINICOG-PARTE2] ❌ Errore connessione:', error);
+      document.getElementById('message').innerHTML = '<span class="message-error">❌ Errore di connessione</span>';
+    } else {
+      console.error('[MINICOG-PARTE2] ❌ Errore:', error);
+      document.getElementById('message').innerHTML = `<span class="message-error">❌ ${error.message}</span>`;
+    }
+    
+    postSuccess = false;
+  });
+
+  setTimeout(function() {
+    console.log('[MINICOG-PARTE2] Timer 3 sec scaduto');
+    
+    if (!postSuccess) {
+      console.warn('[MINICOG-PARTE2] ⚠️ POST non riuscito, uso fallback');
+      redirectUrl = 'test_minicog_parte3.html';
+    }
+    
+    console.log('[MINICOG-PARTE2] Redirect a:', redirectUrl);
+    window.location.href = redirectUrl;
+  }, 3000);
+}
+
+function resetOrologio() {
+  angleOre = -Math.PI / 2;
+  angleMinuti = -Math.PI / 2;
+  disegnaOrologio();
+  console.log('[MINICOG-PARTE2] Orologio ripristinato');
+}
+
+window.onload = function() {
+  console.log('[MINICOG-PARTE2] Pagina caricata');
+
+  const minicogDataStr = sessionStorage.getItem('minicog_test');
+  if (!minicogDataStr) {
+    console.warn('[MINICOG-PARTE2] ⚠️ Nessun dato in sessionStorage!');
+    window.location.href = 'test_minicog_parte1.html';
+    return;
+  }
+
+  const minicogData = JSON.parse(minicogDataStr);
+  console.log('[MINICOG-PARTE2] Dati caricati:', minicogData);
+  
+  disegnaOrologio();
+};
+
+</script>
+
+
+</body>
+</html>

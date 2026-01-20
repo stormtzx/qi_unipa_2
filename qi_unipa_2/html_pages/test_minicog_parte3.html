@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test MiniCog - Parte 3: Disegna Orologio</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background-color: #f0f0f0;
+      text-align: center;
+      padding-top: 40px;
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+    .progress {
+      font-size: 14px;
+      color: #888;
+      margin-bottom: 30px;
+    }
+    .info {
+      font-size: 16px;
+      color: #555;
+      margin-bottom: 30px;
+    }
+    .canvas-container {
+      background-color: white;
+      border: 2px solid #4CAF50;
+      border-radius: 10px;
+      padding: 20px;
+      margin: 30px auto;
+      max-width: 500px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    canvas {
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      cursor: crosshair;
+      display: block;
+      margin: 0 auto;
+      background-color: #fafafa;
+      touch-action: none;
+    }
+    .istruzioni {
+      font-size: 14px;
+      color: #555;
+      margin: 20px 0;
+      font-style: italic;
+    }
+    .button-container {
+      margin-top: 30px;
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    button {
+      font-size: 16px;
+      padding: 10px 25px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+    #message {
+      margin-top: 20px;
+      font-size: 16px;
+      font-weight: bold;
+    }
+    .message-success {
+      color: #2e7d32;
+    }
+    .message-error {
+      color: #c62828;
+    }
+    .message-warning {
+      color: #f57f17;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Test MiniCog - Parte 3</h1>
+  <div class="progress">Progresso: 3/4</div>
+  
+  <div class="info">
+    <p><strong>Disegna un orologio</strong></p>
+    <p>Disegna il cerchio, i numeri e le lancette alle 11:10</p>
+  </div>
+
+  <div class="canvas-container">
+    <canvas id="drawing-canvas" width="400" height="400"></canvas>
+  </div>
+
+  <div class="istruzioni">
+    <p>Usa il mouse o il dito per disegnare. Prendi il tuo tempo!</p>
+  </div>
+
+  <div class="button-container">
+    <button onclick="disegnoCompletato()">Disegno Completato</button>
+    <button onclick="cancellaDisegno()">Cancella</button>
+  </div>
+
+  <div id="message"></div>
+<script type="text/javascript">
+
+
+
+
+// ========== CANVAS SETUP ==========
+
+const canvas = document.getElementById('drawing-canvas');
+const ctx = canvas.getContext('2d');
+
+let isDrawing = false;
+let lastX = 0;
+let lastY = 0;
+let redirectUrl = null;
+let postSuccess = false;
+
+// ========== MOUSE EVENTS ==========
+
+canvas.addEventListener('mousedown', function(e) {
+  isDrawing = true;
+  const rect = canvas.getBoundingClientRect();
+  lastX = e.clientX - rect.left;
+  lastY = e.clientY - rect.top;
+});
+
+canvas.addEventListener('mousemove', function(e) {
+  if (!isDrawing) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(lastX, lastY);
+  ctx.lineTo(x, y);
+  ctx.stroke();
+
+  lastX = x;
+  lastY = y;
+});
+
+canvas.addEventListener('mouseup', function() {
+  isDrawing = false;
+});
+
+canvas.addEventListener('mouseleave', function() {
+  isDrawing = false;
+});
+
+// ========== TOUCH EVENTS (tablet/mobile) ==========
+
+canvas.addEventListener('touchstart', function(e) {
+  e.preventDefault();
+  isDrawing = true;
+  const rect = canvas.getBoundingClientRect();
+  const touch = e.touches[0];
+  lastX = touch.clientX - rect.left;
+  lastY = touch.clientY - rect.top;
+});
+
+canvas.addEventListener('touchmove', function(e) {
+  e.preventDefault();
+  if (!isDrawing) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const touch = e.touches[0];
+  const x = touch.clientX - rect.left;
+  const y = touch.clientY - rect.top;
+
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(lastX, lastY);
+  ctx.lineTo(x, y);
+  ctx.stroke();
+
+  lastX = x;
+  lastY = y;
+});
+
+canvas.addEventListener('touchend', function() {
+  isDrawing = false;
+});
+
+// ========== CANCELLA DISEGNO ==========
+
+function cancellaDisegno() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  console.log('[MINICOG-PARTE3] Disegno cancellato');
+}
+
+// ========== DISEGNO COMPLETATO (OPZIONE C-SAFE) ==========
+
+function disegnoCompletato() {
+  console.log('[MINICOG-PARTE3] Disegno completato!');
+
+  // Leggi sessionStorage
+  const minicogDataStr = sessionStorage.getItem('minicog_test');
+  if (!minicogDataStr) {
+    console.warn('[MINICOG-PARTE3] ⚠️ Nessun dato in sessionStorage!');
+    alert('Errore: sessionStorage vuoto!');
+    window.location.href = 'test_minicog_parte1.html';
+    return;
+  }
+
+  let minicogData = JSON.parse(minicogDataStr);
+
+  // ✅ CORRETTO: Aggiungi risultato parte 3 con 1 punto fisso
+  minicogData.parte3 = {
+    score: 1,
+    stato: 'Disegno completato',
+    disegno_base64: canvas.toDataURL('image/png')
+  };
+
+  // Salva in sessionStorage
+  sessionStorage.setItem('minicog_test', JSON.stringify(minicogData));
+  console.log('[MINICOG-PARTE3] Dati salvati in sessionStorage');
+
+  // Prepara payload
+  const payload = {
+    formtype: 'minicog_parte3',
+    score: 1,
+    stato: 'Disegno completato',
+    timestamp: new Date().toISOString()
+  };
+
+  console.log('[MINICOG-PARTE3] Invio payload:', JSON.stringify(payload, null, 2));
+
+  // Disabilita bottoni
+  document.querySelectorAll('button').forEach(btn => btn.disabled = true);
+  document.getElementById('message').innerHTML = '<span class="message-warning">⏳ Invio disegno al server...</span>';
+
+  // Reset flags
+  postSuccess = false;
+  redirectUrl = null;
+
+  // ========== THREAD 1: POST con TIMEOUT 2 sec ==========
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 2000);
+
+  fetch('/submit_form', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    signal: controller.signal
+  })
+  .then(function(response) {
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      throw new Error(`Errore HTTP ${response.status}`);
+    }
+    return response.json();
+  })
+  .then(function(data) {
+    console.log('[MINICOG-PARTE3] ✅ Response dal server:', data);
+
+    if (data.status === 'success') {
+      postSuccess = true;
+      redirectUrl = data.redirect_url || 'test_minicog_parte4.html';
+      console.log('[MINICOG-PARTE3] POST OK, redirect salvato:', redirectUrl);
+      
+      document.getElementById('message').innerHTML = '<span class="message-success">✅ Disegno ricevuto! Pepper sta parlando...</span>';
+    } else {
+      throw new Error(data.message || 'Errore sconosciuto dal server');
+    }
+  })
+  .catch(function(error) {
+    clearTimeout(timeoutId);
+    
+    if (error.name === 'AbortError') {
+      console.warn('[MINICOG-PARTE3] ⚠️ TIMEOUT POST');
+      document.getElementById('message').innerHTML = '<span class="message-warning">⚠️ Server lento, ma continuo...</span>';
+    } else if (error instanceof TypeError) {
+      console.error('[MINICOG-PARTE3] ❌ Errore connessione:', error);
+      document.getElementById('message').innerHTML = '<span class="message-error">❌ Errore di connessione</span>';
+    } else {
+      console.error('[MINICOG-PARTE3] ❌ Errore:', error);
+      document.getElementById('message').innerHTML = `<span class="message-error">❌ ${error.message}</span>`;
+    }
+    
+    postSuccess = false;
+  });
+
+  // ========== THREAD 2: Timer parallelo (3 secondi) ==========
+  setTimeout(function() {
+    console.log('[MINICOG-PARTE3] Timer 3 sec scaduto');
+    
+    if (!postSuccess) {
+      console.warn('[MINICOG-PARTE3] ⚠️ POST non riuscito, uso fallback');
+      redirectUrl = 'test_minicog_parte4.html';
+    }
+    
+    console.log('[MINICOG-PARTE3] Redirect a:', redirectUrl);
+    window.location.href = redirectUrl;
+  }, 3000);
+}
+
+// ========== INIT ==========
+
+window.onload = function() {
+  console.log('[MINICOG-PARTE3] Pagina caricata');
+
+  const minicogDataStr = sessionStorage.getItem('minicog_test');
+  if (!minicogDataStr) {
+    console.warn('[MINICOG-PARTE3] ⚠️ Nessun dato in sessionStorage!');
+    window.location.href = 'test_minicog_parte1.html';
+    return;
+  }
+
+  const minicogData = JSON.parse(minicogDataStr);
+  console.log('[MINICOG-PARTE3] Dati caricati:', minicogData);
+};
+
+</script>
+
+</body>
+</html>

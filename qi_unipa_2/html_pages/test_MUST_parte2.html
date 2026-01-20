@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test MUST - Parte 2: Perdita di peso</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background-color: #f0f0f0;
+      text-align: center;
+      padding-top: 40px;
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+    .progress {
+      font-size: 14px;
+      color: #888;
+      margin-bottom: 20px;
+    }
+    .info {
+      font-size: 16px;
+      color: #555;
+      margin-bottom: 30px;
+    }
+    .button-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 15px;
+    }
+    button {
+      font-size: 18px;
+      padding: 12px 30px;
+      width: 80%;
+      max-width: 300px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+    #message {
+      margin-top: 20px;
+      font-size: 16px;
+      font-weight: bold;
+    }
+    .message-success {
+      color: #2e7d32;
+    }
+    .message-error {
+      color: #c62828;
+    }
+    .message-warning {
+      color: #f57f17;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Test MUST - Parte 2</h1>
+  <div class="progress">Progresso: 2/3</div>
+  
+  <div class="info">
+    <p><strong>Hai perso peso negli ultimi 3 mesi?</strong></p>
+    <p>Seleziona l'opzione che ti descrive meglio</p>
+  </div>
+
+  <div class="button-container">
+    <button id="btn1" onclick="inviaRisposta(0, 'Nessuna perdita di peso')">Nessuna perdita di peso</button>
+    <button id="btn2" onclick="inviaRisposta(1, 'Lieve perdita di peso')">Lieve perdita di peso</button>
+    <button id="btn3" onclick="inviaRisposta(2, 'Notevole perdita di peso')">Notevole perdita di peso</button>
+  </div>
+
+  <div id="message"></div>
+
+  <script type="text/javascript">
+
+
+// ========== STATO GLOBALE ==========
+
+let redirectUrl = null;
+let postSuccess = false;
+
+// ========== FUNZIONE: INVIA RISPOSTA (OPZIONE C-SAFE) ==========
+
+function inviaRisposta(punteggio, stato) {
+  console.log(`[MUST-PARTE2] Selezionato: ${stato} (score: ${punteggio})`);
+
+  // Leggi dati precedenti da sessionStorage
+  const mustDataStr = sessionStorage.getItem('must_test');
+  if (!mustDataStr) {
+    console.warn('[MUST-PARTE2] ⚠️ Nessun dato in sessionStorage!');
+    alert('Errore: sessionStorage vuoto!');
+    window.location.href = 'test_MUST_parte1.html';
+    return;
+  }
+
+  let mustData = JSON.parse(mustDataStr);
+
+  // Aggiungi must2
+  mustData.must2 = {
+    score: punteggio,
+    stato: stato
+  };
+
+  // Salva in sessionStorage
+  sessionStorage.setItem('must_test', JSON.stringify(mustData));
+  console.log('[MUST-PARTE2] Dati aggiornati in sessionStorage:', mustData);
+
+  // Prepara payload
+  const payload = {
+    formtype: 'must_parte2',
+    score: punteggio,
+    stato: stato,
+    timestamp: new Date().toISOString()
+  };
+
+  console.log('[MUST-PARTE2] Invio payload:', JSON.stringify(payload, null, 2));
+
+  // Disabilita bottoni
+  document.querySelectorAll('.button-container button').forEach(btn => btn.disabled = true);
+  document.getElementById('message').innerHTML = '<span class="message-warning">⏳ Invio risposta...</span>';
+
+  // Reset flags
+  postSuccess = false;
+  redirectUrl = null;
+
+  // ========== THREAD 1: POST con TIMEOUT 2 sec ==========
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 2000);
+
+  fetch('/submit_form', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    signal: controller.signal
+  })
+  .then(function(response) {
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      throw new Error(`Errore HTTP ${response.status}`);
+    }
+    return response.json();
+  })
+  .then(function(data) {
+    console.log('[MUST-PARTE2] ✅ Response dal server:', data);
+
+    if (data.status === 'success') {
+      postSuccess = true;
+      redirectUrl = data.redirect_url || 'test_MUST_parte3.html';
+      console.log('[MUST-PARTE2] POST OK, redirect salvato:', redirectUrl);
+      
+      document.getElementById('message').innerHTML = '<span class="message-success">✅ Risposta ricevuta! Pepper sta parlando...</span>';
+    } else {
+      throw new Error(data.message || 'Errore sconosciuto dal server');
+    }
+  })
+  .catch(function(error) {
+    clearTimeout(timeoutId);
+    
+    if (error.name === 'AbortError') {
+      console.warn('[MUST-PARTE2] ⚠️ TIMEOUT POST');
+      document.getElementById('message').innerHTML = '<span class="message-warning">⚠️ Server lento, ma continuo...</span>';
+    } else if (error instanceof TypeError) {
+      console.error('[MUST-PARTE2] ❌ Errore connessione:', error);
+      document.getElementById('message').innerHTML = '<span class="message-error">❌ Errore di connessione</span>';
+    } else {
+      console.error('[MUST-PARTE2] ❌ Errore:', error);
+      document.getElementById('message').innerHTML = `<span class="message-error">❌ ${error.message}</span>`;
+    }
+    
+    postSuccess = false;
+
+    // Abilita bottoni di nuovo
+    document.querySelectorAll('.button-container button').forEach(btn => btn.disabled = false);
+  });
+
+  // ========== THREAD 2: Timer parallelo (3 secondi) ==========
+  setTimeout(function() {
+    console.log('[MUST-PARTE2] Timer 3 sec scaduto');
+    
+    if (!postSuccess) {
+      console.warn('[MUST-PARTE2] ⚠️ POST non riuscito, uso fallback');
+      redirectUrl = 'test_MUST_parte3.html';
+    }
+    
+    console.log('[MUST-PARTE2] Redirect a:', redirectUrl);
+    window.location.href = redirectUrl;
+  }, 3000);
+}
+
+// ========== INIT ==========
+
+window.onload = function() {
+  console.log('[MUST-PARTE2] Pagina caricata');
+
+  const mustDataStr = sessionStorage.getItem('must_test');
+  if (!mustDataStr) {
+    console.warn('[MUST-PARTE2] ⚠️ Nessun dato in sessionStorage! Ritorno a parte1');
+    window.location.href = 'test_MUST_parte1.html';
+    return;
+  }
+
+  const mustData = JSON.parse(mustDataStr);
+  console.log('[MUST-PARTE2] Dati da parte1:', mustData);
+};
+
+  </script>
+
+</body>
+</html>

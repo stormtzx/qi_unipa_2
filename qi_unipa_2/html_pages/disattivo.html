@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pepper - Sistema di Assistenza Disattivo</title>
+<style>
+    /* ------------------------------------ */
+    /* STILI GLOBALI E SFONDO (DISATTIVO)   */
+    /* ------------------------------------ */
+    body {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #4b4b4b 0%, #2c2c2c 100%);
+        overflow: hidden;
+        position: relative;
+    }
+
+    body::before {
+        content: '';
+        position: absolute;
+        width: 300px;
+        height: 300px;
+        background: rgba(0, 0, 0, 0.1);
+        border-radius: 50%;
+        animation: none;
+        box-shadow: 0 0 100px 30px rgba(0, 0, 0, 0.1);
+        pointer-events: none;
+    }
+
+    /* ------------------------------------ */
+    /* TITOLO E TESTO (DISATTIVO)           */
+    /* ------------------------------------ */
+    h1 {
+        font-size: 2.5em;
+        color: #aaaaaa;
+        text-align: center;
+        margin: 40px 0 0 0;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        letter-spacing: 2px;
+        animation: none;
+        z-index: 1;
+    }
+    
+    .subtitle {
+        font-size: 1.2em;
+        color: #888888;
+        margin-top: 10px;
+        text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+        z-index: 1;
+    }
+
+    /* ------------------------------------ */
+    /* SIMULAZIONE TESTA DI PEPPER SPENTO   */
+    /* ------------------------------------ */
+    .pepper-head {
+        width: 220px;
+        height: 220px;
+        background: #e0e0e0;
+        border-radius: 50%;
+        position: relative;
+        border: 8px solid #333333;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        animation: none;
+        z-index: 1;
+        opacity: 0.9;
+    }
+
+    /* Occhi chiusi: Contenitore */
+    .eye-pair {
+        display: flex;
+        justify-content: space-between;
+        width: 70%;
+        position: absolute;
+        top: 95px; /* Spostato leggermente più in basso per centrare la linea */
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    /* Occhi chiusi: Linea orizzontale */
+    .eye {
+        width: 35px; /* Leggermente più largo */
+        height: 5px; /* Molto sottile per simular una linea */
+        background: #333333; /* Nero/Grigio scuro */
+        border-radius: 2px; /* Angoli arrotondati */
+        border: none;
+        box-shadow: none;
+        animation: none;
+    }
+
+    /* Bocca neutra */
+    .mouth {
+        position: absolute;
+        bottom: 50px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 80px;
+        height: 15px;
+        background: #444444;
+        border-radius: 5px;
+        border-top: none;
+        box-shadow: none;
+        animation: none;
+    }
+
+    /* Antenna sulla testa */
+    .antenna {
+        position: absolute;
+        top: -40px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 10px;
+        height: 30px;
+        background: #555555;
+        border-radius: 5px 5px 0 0;
+        box-shadow: none;
+    }
+</style>
+</head>
+<body>
+    <div class="pepper-head">
+        <div class="antenna"></div>
+        <div class="eye-pair">
+            <div class="eye"></div>
+            <div class="eye"></div>
+        </div>
+        <div class="mouth"></div>
+    </div>
+    <h1>Sistema Disattivo</h1>
+    <p class="subtitle">Robot in modalità standby</p>
+</body>
+</html>

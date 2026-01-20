@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Mobilità - Parte 5: Sollevamento da sedia</title>
+  <style type="text/css">
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+      font-size: 1.8rem;
+      color: #333;
+    }
+
+    .progress {
+      font-size: 0.9rem;
+      color: #888;
+      margin-bottom: 20px;
+    }
+
+    .info {
+      font-size: 1.1rem;
+      margin-bottom: 20px;
+      color: #555;
+    }
+
+    #cronometro {
+      font-size: 1.2rem;
+      margin-bottom: 20px;
+      color: #1565c0;
+      font-weight: bold;
+    }
+
+    .button-container {
+      display: block;
+    }
+
+    .action-button {
+      display: block;
+      width: 80%;
+      max-width: 300px;
+      margin: 10px auto;
+      padding: 15px;
+      font-size: 1.1rem;
+      border: none;
+      border-radius: 10px;
+      background-color: #4CAF50;
+      color: white;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    .action-button:hover:not(:disabled) {
+      background-color: #45a049;
+    }
+
+    .action-button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    .action-button.available {
+      background-color: #4CAF50;
+      cursor: pointer;
+    }
+
+    .action-button.available:hover {
+      background-color: #45a049;
+    }
+
+    .status-label {
+      font-size: 0.85rem;
+      margin-top: 5px;
+      color: #888;
+      min-height: 20px;
+    }
+
+    #message {
+      margin-top: 20px;
+      font-size: 1rem;
+      font-weight: bold;
+    }
+
+    .message-success {
+      color: #2e7d32;
+    }
+
+    .message-error {
+      color: #c62828;
+    }
+
+    .message-warning {
+      color: #f57f17;
+    }
+  </style>
+</head>
+<body>
+
+  <h1 id="titolo">Test 5: Sollevamento da sedia 5 volte</h1>
+  <div class="progress">Progresso: 5/5 - FINALE</div>
+  
+  <div class="info">
+    <p><strong>Alzati e siediti dalla sedia 5 volte il più velocemente possibile</strong></p>
+    <p>Registra il tempo totale.</p>
+  </div>
+
+  <div id="cronometro">Tempo trascorso: 0 secondi</div>
+
+  <div class="button-container">
+    <div>
+      <button id="btn1" class="action-button">&lt;12 sec</button>
+      <div class="status-label" id="label1">✅ Disponibile</div>
+    </div>
+    
+    <div>
+      <button id="btn2" class="action-button" disabled>12-15s</button>
+      <div class="status-label" id="label2">Disponibile dopo 12 secondi</div>
+    </div>
+    
+    <div>
+      <button id="btn3" class="action-button" disabled>15-18s</button>
+      <div class="status-label" id="label3">Disponibile dopo 15 secondi</div>
+    </div>
+    
+    <div>
+      <button id="btn4" class="action-button" disabled>18-60s</button>
+      <div class="status-label" id="label4">Disponibile dopo 18 secondi</div>
+    </div>
+  </div>
+
+  <div id="message"></div>
+
+  <script type="text/javascript">
+
+
+// ========== STATO GLOBALE ==========
+
+let redirectUrl = null;
+let postSuccess = false;
+let secondi = 0;
+let timerRunning = true;
+
+// ✅ FIX: Calcolo punteggio automatico dai secondi
+function calcolaPunteggio(tempoSeconde) {
+  let score;
+  let stato;
+  
+  if (tempoSeconde < 12) {
+    score = 0;  // <12s = 0 punti (veloce)
+    stato = '<12s';
+  } else if (tempoSeconde <= 15) {
+    score = 1;  // 12-15s = 1 punto
+    stato = '12-15s';
+  } else if (tempoSeconde <= 18) {
+    score = 2;  // 15-18s = 2 punti
+    stato = '15-18s';
+  } else {
+    score = 3;  // 18-60s = 3 punti (lento)
+    stato = '18-60s';
+  }
+  
+  console.log(`[PUNTEGGIO CALCOLATO] Tempo: ${tempoSeconde}s → Score: ${score} (${stato})`);
+  
+  return { score, stato };
+}
+
+// ========== FUNZIONE: INVIA RISPOSTA FINALE (OPZIONE C-SAFE) ==========
+
+function inviaRisposta() {
+  timerRunning = false;
+  
+  // ✅ FIX: Calcola punteggio automaticamente dai secondi
+  const { score, stato } = calcolaPunteggio(secondi);
+  
+  console.log('[TEST-MOBILITA-5-FINALE] Test terminato:', stato, '- Score:', score, '- Tempo:', secondi);
+
+  // Leggi dati precedenti da sessionStorage
+  const mobilitaDataStr = sessionStorage.getItem('mobilita_test');
+  let mobilitaData = {};
+  
+  if (mobilitaDataStr) {
+    mobilitaData = JSON.parse(mobilitaDataStr);
+  }
+
+  // Aggiungi test5
+  mobilitaData.test5 = {
+    score: score,
+    stato: stato,
+    tempo_secondi: secondi
+  };
+
+  // Calcola punteggio totale
+  const punteggio_totale = (mobilitaData.test1?.score || 0) + 
+                           (mobilitaData.test2?.score || 0) + 
+                           (mobilitaData.test3?.score || 0) + 
+                           (mobilitaData.test4?.score || 0) + 
+                           score;
+
+  // ✅ FIX: Payload con punteggio calcolato automaticamente
+  const payload = {
+    formtype: 'mobilita_test5',
+    test_id: 'test5',
+    test1: mobilitaData.test1 || { score: 0, stato: 'N/A' },
+    test2: mobilitaData.test2 || { score: 0, stato: 'N/A' },
+    test3: mobilitaData.test3 || { score: 0, stato: 'N/A' },
+    test4: mobilitaData.test4 || { score: 0, stato: 'N/A' },
+    test5: {
+      score: score,
+      stato: stato,
+      tempo_secondi: secondi
+    },
+    punteggio_totale: punteggio_totale,
+    timestamp: new Date().toISOString()
+  };
+
+  console.log('[TEST-MOBILITA-5-FINALE] Invio payload:', JSON.stringify(payload, null, 2));
+
+  // Disabilita bottoni
+  document.querySelectorAll('.action-button').forEach(btn => btn.disabled = true);
+  document.getElementById('message').innerHTML = '<span class="message-warning">⏳ Invio risultati finali...</span>';
+
+  // Reset flags
+  postSuccess = false;
+  redirectUrl = null;
+
+  // ========== THREAD 1: POST con TIMEOUT 3 sec (più lungo per dati completi) ==========
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+  fetch('/submit_form', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    signal: controller.signal
+  })
+  .then(function(response) {
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      throw new Error(`Errore HTTP ${response.status}`);
+    }
+    return response.json();
+  })
+  .then(function(data) {
+    console.log('[TEST-MOBILITA-5-FINALE] ✅ Response dal server:', data);
+
+    if (data.status === 'success') {
+      postSuccess = true;
+      redirectUrl = data.redirect_url || 'test_mobilita_completato.html';
+      console.log('[TEST-MOBILITA-5-FINALE] POST OK - Redirect a:', redirectUrl);
+      
+      document.getElementById('message').innerHTML = `<span class="message-success">✅ Test Mobilità completato!<br>Punteggio: ${punteggio_totale}/12</span>`;
+    } else {
+      throw new Error(data.message || 'Errore sconosciuto dal server');
+    }
+  })
+  .catch(function(error) {
+    clearTimeout(timeoutId);
+    
+    if (error.name === 'AbortError') {
+      console.warn('[TEST-MOBILITA-5-FINALE] ⚠️ TIMEOUT POST');
+      document.getElementById('message').innerHTML = '<span class="message-warning">⚠️ Server lento, ma dati salvati</span>';
+    } else if (error instanceof TypeError) {
+      console.error('[TEST-MOBILITA-5-FINALE] ❌ Errore connessione:', error);
+      document.getElementById('message').innerHTML = '<span class="message-error">❌ Errore di connessione</span>';
+    } else {
+      console.error('[TEST-MOBILITA-5-FINALE] ❌ Errore:', error);
+      document.getElementById('message').innerHTML = `<span class="message-error">❌ ${error.message}</span>`;
+    }
+    
+    postSuccess = false;
+  });
+
+  // ========== THREAD 2: Timer parallelo (5 secondi - più lungo per finale) ==========
+  setTimeout(function() {
+    console.log('[TEST-MOBILITA-5-FINALE] Timer 5 sec scaduto - Test Mobilità COMPLETO!');
+    
+    if (!postSuccess) {
+      console.warn('[TEST-MOBILITA-5-FINALE] ⚠️ POST non riuscito, uso fallback');
+      redirectUrl = 'test_mobilita_completato.html';
+    }
+    
+    if (!redirectUrl) {
+      redirectUrl = 'test_mobilita_completato.html';
+    }
+    
+    console.log('[TEST-MOBILITA-5-FINALE] Redirect a:', redirectUrl);
+    
+    // Salva dati in sessionStorage per pagina finale
+    sessionStorage.setItem('mobilita_test', JSON.stringify(mobilitaData));
+    
+    window.location.href = redirectUrl;
+  }, 5000);
+}
+
+// ✅ FIX: Aggiorna disponibilità bottoni in tempo reale
+function aggiornaBottoni() {
+  const btn1 = document.getElementById('btn1');
+  const btn2 = document.getElementById('btn2');
+  const btn3 = document.getElementById('btn3');
+  const btn4 = document.getElementById('btn4');
+  const label1 = document.getElementById('label1');
+  const label2 = document.getElementById('label2');
+  const label3 = document.getElementById('label3');
+  const label4 = document.getElementById('label4');
+
+  // Bottone 1: <12s ✅ SEMPRE disponibile
+  btn1.disabled = false;
+  btn1.classList.add('available');
+  label1.textContent = '✅ Disponibile';
+  label1.style.color = '#2e7d32';
+
+  // Bottone 2: 12-15s ✅ si sblocca a 12s
+  if (secondi >= 12) {
+    btn2.disabled = false;
+    btn2.classList.add('available');
+    label2.textContent = '✅ Disponibile';
+    label2.style.color = '#2e7d32';
+  } else {
+    btn2.disabled = true;
+    btn2.classList.remove('available');
+    label2.textContent = `Disponibile tra ${12 - secondi}s`;
+    label2.style.color = '#888';
+  }
+
+  // Bottone 3: 15-18s ✅ si sblocca a 15s
+  if (secondi >= 15) {
+    btn3.disabled = false;
+    btn3.classList.add('available');
+    label3.textContent = '✅ Disponibile';
+    label3.style.color = '#2e7d32';
+  } else {
+    btn3.disabled = true;
+    btn3.classList.remove('available');
+    label3.textContent = `Disponibile tra ${15 - secondi}s`;
+    label3.style.color = '#888';
+  }
+
+  // Bottone 4: 18-60s ✅ si sblocca a 18s
+  if (secondi >= 18) {
+    btn4.disabled = false;
+    btn4.classList.add('available');
+    label4.textContent = '✅ Disponibile';
+    label4.style.color = '#2e7d32';
+  } else {
+    btn4.disabled = true;
+    btn4.classList.remove('available');
+    label4.textContent = `Disponibile tra ${18 - secondi}s`;
+    label4.style.color = '#888';
+  }
+}
+
+// ========== INIT ==========
+
+window.onload = function() {
+  console.log('[TEST-MOBILITA-5-FINALE] Pagina caricata');
+
+  // ✅ FIX: Tutti i bottoni ora chiamano automaticamente la funzione con punteggio calcolato
+  document.getElementById('btn1').onclick = function() {
+    inviaRisposta();
+  };
+
+  document.getElementById('btn2').onclick = function() {
+    inviaRisposta();
+  };
+
+  document.getElementById('btn3').onclick = function() {
+    inviaRisposta();
+  };
+
+  document.getElementById('btn4').onclick = function() {
+    inviaRisposta();
+  };
+
+  // Avvia cronometro con controllo e aggiornamento bottoni
+  setInterval(function() {
+    if (timerRunning) {
+      secondi++;
+      document.getElementById('cronometro').innerHTML = 'Tempo trascorso: ' + secondi + ' secondi';
+      
+      // ✅ FIX: Aggiorna lo stato dei bottoni
+      aggiornaBottoni();
+    }
+  }, 1000);
+
+  // Inizializza stato bottoni
+  aggiornaBottoni();
+};
+
+  </script>
+
+</body>
+</html>

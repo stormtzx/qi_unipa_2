@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Mobilità - Completato</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background-color: #f0f0f0;
+      text-align: center;
+      padding: 40px 20px;
+    }
+    
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background-color: white;
+      border-radius: 10px;
+      padding: 40px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .success-icon {
+      font-size: 80px;
+      margin-bottom: 20px;
+    }
+    
+    h1 {
+      font-size: 28px;
+      color: #2e7d32;
+      margin-bottom: 20px;
+    }
+    
+    .result-box {
+      background-color: #e8f5e9;
+      border-left: 4px solid #4CAF50;
+      padding: 20px;
+      margin: 30px 0;
+      text-align: left;
+      border-radius: 5px;
+    }
+    
+    .result-item {
+      margin: 15px 0;
+      font-size: 16px;
+      line-height: 1.6;
+    }
+    
+    .result-item strong {
+      color: #1565c0;
+    }
+    
+    .result-value {
+      font-size: 18px;
+      font-weight: bold;
+      color: #2e7d32;
+    }
+    
+    .test-section {
+      margin-bottom: 15px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid #ccc;
+    }
+    
+    .test-section:last-child {
+      border-bottom: none;
+    }
+    
+    .score-display {
+      background-color: #f5f5f5;
+      padding: 15px;
+      margin: 20px 0;
+      border-radius: 5px;
+      font-size: 18px;
+    }
+    
+    .score-display .label {
+      color: #555;
+      margin-bottom: 8px;
+    }
+    
+    .score-display .value {
+      font-size: 32px;
+      font-weight: bold;
+      color: #2e7d32;
+    }
+    
+    .message {
+      font-size: 16px;
+      color: #555;
+      margin: 30px 0;
+      font-style: italic;
+      line-height: 1.6;
+    }
+    
+    .info-text {
+      font-size: 14px;
+      color: #888;
+      margin-top: 20px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="success-icon">✅</div>
+    
+    <h1>Test Mobilità Completato!</h1>
+    
+    <div class="message">
+      Grazie per aver completato la valutazione della mobilità e dell'equilibrio.
+    </div>
+    
+    <div id="results-container">
+      <!-- Riempito da JavaScript -->
+    </div>
+    
+    <div class="info-text">
+      <p>I tuoi dati sono stati salvati e trasmessi al sistema.</p>
+      <p>Pepper ti comunicherà i risultati.</p>
+    </div>
+  </div>
+  
+<script type="text/javascript">
+
+// ========== FUNZIONE: MOSTRA RISULTATI ==========
+
+function mostraRisultati() {
+  const mobilitaDataStr = sessionStorage.getItem('mobilita_test');
+  
+  if (!mobilitaDataStr) {
+    console.warn('[MOBILITA-COMPLETATO] Nessun dato in sessionStorage');
+    return;
+  }
+  
+  const mobilitaData = JSON.parse(mobilitaDataStr);
+  
+  // Estrai dati dalle parti
+  const test1_score = mobilitaData.test1?.score || 0;
+  const test1_stato = mobilitaData.test1?.stato || 'N/A';
+  
+  const test2_score = mobilitaData.test2?.score || 0;
+  const test2_stato = mobilitaData.test2?.stato || 'N/A';
+  
+  const test3_score = mobilitaData.test3?.score || 0;
+  const test3_stato = mobilitaData.test3?.stato || 'N/A';
+  
+  const test4_score = mobilitaData.test4?.score || 0;
+  const test4_stato = mobilitaData.test4?.stato || 'N/A';
+  
+  const test5_score = mobilitaData.test5?.score || 0;
+  const test5_stato = mobilitaData.test5?.stato || 'N/A';
+  
+  const punteggio_totale = test1_score + test2_score + test3_score + test4_score + test5_score;
+  
+  // Costruisci HTML risultati
+  let html = `
+    <div class="result-box">
+      <div class="test-section">
+        <div class="result-item">
+          <strong>Test 1: Equilibrio piedi affiancati</strong>
+          <br>Tempo: ${test1_stato}
+          <br>Punteggio: <span class="result-value">${test1_score}/2</span>
+        </div>
+      </div>
+      
+      <div class="test-section">
+        <div class="result-item">
+          <strong>Test 2: Equilibrio piedi sfalsati</strong>
+          <br>Tempo: ${test2_stato}
+          <br>Punteggio: <span class="result-value">${test2_score}/2</span>
+        </div>
+      </div>
+      
+      <div class="test-section">
+        <div class="result-item">
+          <strong>Test 3: Equilibrio tallone-punta</strong>
+          <br>Tempo: ${test3_stato}
+          <br>Punteggio: <span class="result-value">${test3_score}/2</span>
+        </div>
+      </div>
+      
+      <div class="test-section">
+        <div class="result-item">
+          <strong>Test 4: Camminata 4 metri</strong>
+          <br>Tempo: ${test4_stato}
+          <br>Punteggio: <span class="result-value">${test4_score}/3</span>
+        </div>
+      </div>
+      
+      <div class="test-section">
+        <div class="result-item">
+          <strong>Test 5: Sollevamento da sedia</strong>
+          <br>Tempo: ${test5_stato}
+          <br>Punteggio: <span class="result-value">${test5_score}/3</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="score-display">
+      <div class="label">Punteggio Totale Mobilità:</div>
+      <div class="value">${punteggio_totale}/12</div>
+    </div>
+  `;
+  
+  document.getElementById('results-container').innerHTML = html;
+  console.log('[MOBILITA-COMPLETATO] Risultati visualizzati');
+}
+
+// ========== INIT ==========
+
+window.onload = function() {
+  console.log('[MOBILITA-COMPLETATO] Pagina caricata');
+  mostraRisultati();
+
+  // Dopo aver mostrato i risultati, invia il payload mobilita_complete al server
+  const mobilitaDataStr = sessionStorage.getItem('mobilita_test');
+  if (!mobilitaDataStr) {
+    console.warn('[MOBILITA-COMPLETATO] Nessun dato in sessionStorage, skip invio mobilita_complete');
+    return;
+  }
+
+  const mobilitaData = JSON.parse(mobilitaDataStr);
+
+  const test1_score = mobilitaData.test1?.score || 0;
+  const test2_score = mobilitaData.test2?.score || 0;
+  const test3_score = mobilitaData.test3?.score || 0;
+  const test4_score = mobilitaData.test4?.score || 0;
+  const test5_score = mobilitaData.test5?.score || 0;
+
+  const punteggio_totale = test1_score + test2_score + test3_score + test4_score + test5_score;
+
+  // Prepara payload finale per il server
+  const payload = {
+    formtype: 'mobilita_complete',
+    test_id: 'mobilita_complete',
+    test1: mobilitaData.test1 || { score: 0, stato: 'N/A' },
+    test2: mobilitaData.test2 || { score: 0, stato: 'N/A' },
+    test3: mobilitaData.test3 || { score: 0, stato: 'N/A' },
+    test4: mobilitaData.test4 || { score: 0, stato: 'N/A' },
+    test5: mobilitaData.test5 || { score: 0, stato: 'N/A' },
+    punteggio_totale: punteggio_totale,
+    timestamp: new Date().toISOString()
+  };
+
+  console.log('[MOBILITA-COMPLETATO] Invio payload mobilita_complete:', JSON.stringify(payload, null, 2));
+
+  fetch('/submit_form', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+  .then(function(response) {
+    console.log('[MOBILITA-COMPLETATO] mobilita_complete response status:', response.status);
+    return response.json().catch(() => ({}));
+  })
+  .then(function(data) {
+    console.log('[MOBILITA-COMPLETATO] mobilita_complete response body:', data);
+  })
+  .catch(function(error) {
+    console.error('[MOBILITA-COMPLETATO] ❌ Errore invio mobilita_complete:', error);
+  });
+};
+
+</script>
+
+</body>
+</html>

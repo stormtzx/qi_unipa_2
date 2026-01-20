@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test MUST - Completato</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background-color: #f0f0f0;
+      text-align: center;
+      padding: 40px 20px;
+    }
+    
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background-color: white;
+      border-radius: 10px;
+      padding: 40px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .success-icon {
+      font-size: 80px;
+      margin-bottom: 20px;
+    }
+    
+    h1 {
+      font-size: 28px;
+      color: #2e7d32;
+      margin-bottom: 20px;
+    }
+    
+    .result-box {
+      background-color: #e8f5e9;
+      border-left: 4px solid #4CAF50;
+      padding: 20px;
+      margin: 30px 0;
+      text-align: left;
+      border-radius: 5px;
+    }
+    
+    .result-item {
+      margin: 15px 0;
+      font-size: 16px;
+      line-height: 1.6;
+    }
+    
+    .result-item strong {
+      color: #1565c0;
+    }
+    
+    .result-value {
+      font-size: 18px;
+      font-weight: bold;
+      color: #2e7d32;
+    }
+    
+    .score-display {
+      background-color: #f5f5f5;
+      padding: 15px;
+      margin: 20px 0;
+      border-radius: 5px;
+      font-size: 18px;
+    }
+    
+    .score-display .label {
+      color: #555;
+      margin-bottom: 8px;
+    }
+    
+    .score-display .value {
+      font-size: 32px;
+      font-weight: bold;
+      color: #2e7d32;
+    }
+    
+    .status-box {
+      background-color: #e3f2fd;
+      border-left: 4px solid #1976d2;
+      padding: 15px;
+      margin: 20px 0;
+      border-radius: 5px;
+      text-align: left;
+    }
+    
+    .status-box p {
+      margin: 0;
+      font-size: 16px;
+      color: #1565c0;
+    }
+    
+    .status-box .label {
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    
+    .message {
+      font-size: 16px;
+      color: #555;
+      margin: 30px 0;
+      font-style: italic;
+    }
+    
+    .button-container {
+      margin-top: 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    
+    button {
+      font-size: 16px;
+      padding: 12px 30px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    
+    button:hover {
+      background-color: #45a049;
+    }
+    
+    .secondary-btn {
+      background-color: #2196F3;
+    }
+    
+    .secondary-btn:hover {
+      background-color: #0b7dda;
+    }
+    
+    .info-text {
+      font-size: 14px;
+      color: #888;
+      margin-top: 20px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="success-icon">✅</div>
+    
+    <h1>Test MUST Completato!</h1>
+    
+    <div class="message">
+      Grazie per aver completato la valutazione dello stato nutrizionale.
+    </div>
+    
+    <div id="results-container">
+      <!-- Riempito da JavaScript -->
+    </div>
+    
+    <div class="info-text">
+      <p>I tuoi dati sono stati salvati e trasmessi al sistema.</p>
+      <p>Puoi chiudere questa pagina.</p>
+    </div>
+  </div>
+<script type="text/javascript">
+
+// ========== FUNZIONE: MOSTRA RISULTATI ==========
+
+function mostraRisultati() {
+  const mustDataStr = sessionStorage.getItem('must_test');
+  
+  if (!mustDataStr) {
+    console.warn('[MUST-COMPLETATO] Nessun dato in sessionStorage');
+    return;
+  }
+  
+  const mustData = JSON.parse(mustDataStr);
+  
+  // Calcola totali se non presenti
+  const punteggio_totale = mustData.must1.score + mustData.must2.score + (mustData.must3?.score || 0);
+  
+  // Determina stato nutrizionale
+  let stato_nutrizionale = '';
+  if (punteggio_totale >= 4) {
+    stato_nutrizionale = 'Malnutrito';
+  } else if (punteggio_totale >= 2) {
+    stato_nutrizionale = 'Normale';
+  } else {
+    stato_nutrizionale = 'Ben nutrito';
+  }
+  
+  // Costruisci HTML risultati
+  let html = `
+    <div class="result-box">
+      <div class="result-item">
+        <strong>Dati Antropometrici (Parte 1):</strong>
+        <br>BMI: <span class="result-value">${mustData.must1.bmi.toFixed(1)}</span> (${mustData.must1.stato})
+        <br><small>Peso: ${mustData.must1.peso} kg | Altezza: ${mustData.must1.altezza} cm</small>
+        <br>Punteggio: <span class="result-value">${mustData.must1.score}/2</span>
+      </div>
+      
+      <hr style="margin: 15px 0; border: none; border-top: 1px solid #ccc;">
+      
+      <div class="result-item">
+        <strong>Perdita di Peso (Parte 2):</strong>
+        <br>${mustData.must2.stato}
+        <br>Punteggio: <span class="result-value">${mustData.must2.score}/2</span>
+      </div>
+      
+      <hr style="margin: 15px 0; border: none; border-top: 1px solid #ccc;">
+      
+      <div class="result-item">
+        <strong>Digiuno Prolungato (Parte 3):</strong>
+        <br>${mustData.must3?.stato || 'N/A'}
+        <br>Punteggio: <span class="result-value">${mustData.must3?.score || 0}/2</span>
+      </div>
+    </div>
+    
+    <div class="score-display">
+      <div class="label">Punteggio Totale MUST:</div>
+      <div class="value">${punteggio_totale}/6</div>
+    </div>
+    
+    <div class="status-box">
+      <div class="label">Stato Nutrizionale:</div>
+      <p>${stato_nutrizionale}</p>
+    </div>
+  `;
+  
+  document.getElementById('results-container').innerHTML = html;
+  console.log('[MUST-COMPLETATO] Risultati visualizzati');
+}
+
+// ========== FUNZIONE: STAMPA RISULTATI ==========
+
+function printResults() {
+  console.log('[MUST-COMPLETATO] Stampa risultati');
+  window.print();
+}
+
+// ========== INIT ==========
+
+window.onload = function() {
+  console.log('[MUST-COMPLETATO] Pagina caricata');
+  mostraRisultati();
+
+  // Dopo aver mostrato i risultati, invia il payload finale must_complete al server
+  const mustDataStr = sessionStorage.getItem('must_test');
+  if (!mustDataStr) {
+    console.warn('[MUST-COMPLETATO] Nessun dato in sessionStorage, skip invio must_complete');
+    return;
+  }
+
+  const mustData = JSON.parse(mustDataStr);
+
+  const punteggio_totale = mustData.must1.score + mustData.must2.score + (mustData.must3?.score || 0);
+
+  let stato_nutrizionale = '';
+  if (punteggio_totale >= 4) {
+    stato_nutrizionale = 'Malnutrito';
+  } else if (punteggio_totale >= 2) {
+    stato_nutrizionale = 'Normale';
+  } else {
+    stato_nutrizionale = 'Ben nutrito';
+  }
+
+  const payload = {
+    formtype: 'must_complete',
+    test_id: 'must_complete',
+    must1: mustData.must1,
+    must2: mustData.must2,
+    must3: mustData.must3 || { score: 0, stato: 'N/A' },
+    punteggio_totale: punteggio_totale,
+    stato_nutrizionale: stato_nutrizionale,
+    timestamp: new Date().toISOString()
+  };
+
+  console.log('[MUST-COMPLETATO] Invio payload must_complete:', JSON.stringify(payload, null, 2));
+
+  fetch('/submit_form', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+  .then(function(response) {
+    console.log('[MUST-COMPLETATO] must_complete response status:', response.status);
+    return response.json().catch(() => ({}));
+  })
+  .then(function(data) {
+    console.log('[MUST-COMPLETATO] must_complete response body:', data);
+  })
+  .catch(function(error) {
+    console.error('[MUST-COMPLETATO] ❌ Errore invio must_complete:', error);
+  });
+};
+
+</script>
+
+</body>
+</html>

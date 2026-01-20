@@ -1,0 +1,6 @@
+# Request
+# Nessun parametro necessario
+---
+# Response
+bool success
+string message

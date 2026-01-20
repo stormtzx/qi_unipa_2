@@ -1,0 +1,15 @@
+# Restiuisce le coordinate 3D (x, y, z) da pixel immagine usando la depth camera di pepper
+
+int32 pixel_x           # Coordinata X pixel (0 = sinistra, width = destra)
+int32 pixel_y           # Coordinata Y pixel (0 = alto, height = basso)
+int32 camera_index      # 0 = frontale, 1 = fondo (default: 0)
+
+---
+
+bool success
+string message
+float32 x               # Coordinate robot frame: X (avanti/indietro) in metri
+float32 y               # Coordinate robot frame: Y (sinistra/destra) in metri
+float32 z               # Coordinate robot frame: Z (alto/basso) in metri
+float32 distance        # Distanza diretta dal robot (metri)
+float32 confidence      # 0.0-1.0 (qualità stima depth)

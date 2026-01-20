@@ -1,0 +1,8 @@
+# Request
+string target_name       # "Face", "People", "Sound"
+float64 distance         # Distanza target in metri (default: 2.0)
+---
+# Response
+bool success
+string message
+string active_target     # Target attualmente attivo

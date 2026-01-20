@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registrazione Utente - Pepper</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+    
+    body {
+      font-family: 'Arial', sans-serif;
+      margin: 0;
+      padding: 15px;
+      background: linear-gradient(135deg, #4a90e2 0%, #7b68ee 100%);
+      min-height: 100vh;
+      font-size: 18px;
+      line-height: 1.4;
+      touch-action: manipulation;
+    }
+    
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: white;
+      padding: 30px;
+      border-radius: 20px;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+    }
+    
+    h2 {
+      text-align: center;
+      color: #333;
+      margin-bottom: 40px;
+      font-size: 32px;
+      font-weight: bold;
+    }
+    
+    .form-group {
+      margin-bottom: 25px;
+    }
+    
+    .form-row {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 25px;
+    }
+    
+    .form-row .form-group {
+      flex: 1;
+      margin-bottom: 0;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 12px;
+      font-weight: bold;
+      color: #333;
+      font-size: 20px;
+    }
+    
+    input[type="text"], input[type="number"] {
+      width: 100%;
+      padding: 20px;
+      border: 3px solid #ddd;
+      border-radius: 12px;
+      font-size: 22px;
+      background-color: #fff;
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+      min-height: 60px;
+    }
+    
+    input[type="text"]:focus, input[type="number"]:focus {
+      outline: none;
+      border-color: #4a90e2;
+      box-shadow: 0 0 0 4px rgba(74, 144, 226, 0.2);
+    }
+    
+    fieldset {
+      border: 3px solid #ddd;
+      border-radius: 15px;
+      margin-bottom: 30px;
+      padding: 25px;
+      background-color: #fafafa;
+    }
+    
+    legend {
+      font-weight: bold;
+      color: #333;
+      padding: 0 15px;
+      font-size: 22px;
+    }
+    
+    .checkbox-group {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 15px;
+      margin-top: 15px;
+    }
+    
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      padding: 15px;
+      background: white;
+      border: 3px solid #e0e0e0;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      min-height: 70px;
+      font-size: 20px;
+      font-weight: 500;
+    }
+    
+    .checkbox-item:hover {
+      background-color: #f0f8ff;
+      border-color: #4a90e2;
+    }
+    
+    .checkbox-item.checked {
+      background-color: #e8f4fd;
+      border-color: #4a90e2;
+      color: #2c5aa0;
+    }
+    
+    .checkbox-item.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      background-color: #f5f5f5;
+    }
+    
+    .checkbox-item.disabled:hover {
+      background-color: #f5f5f5;
+      border-color: #e0e0e0;
+    }
+    
+    .checkbox-item input[type="checkbox"] {
+      width: 30px;
+      height: 30px;
+      margin: 0;
+      cursor: pointer;
+      transform: scale(1.5);
+      pointer-events: none;
+    }
+    
+    .checkbox-item.disabled input[type="checkbox"] {
+      cursor: not-allowed;
+    }
+    
+    .checkbox-text {
+      flex: 1;
+      user-select: none;
+    }
+    
+    .submit-btn {
+      width: 100%;
+      padding: 25px;
+      font-size: 24px;
+      font-weight: bold;
+      background: linear-gradient(135deg, #4a90e2 0%, #7b68ee 100%);
+      color: white;
+      border: none;
+      border-radius: 15px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-top: 30px;
+      min-height: 80px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    .submit-btn:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 25px rgba(74, 144, 226, 0.4);
+    }
+    
+    .submit-btn:active {
+      transform: translateY(-1px);
+    }
+    
+    .unit {
+      font-size: 16px;
+      color: #666;
+      margin-left: 8px;
+      font-weight: normal;
+    }
+    
+    /* Stili specifici per tablet */
+    @media (max-width: 1024px) {
+      .form-row {
+        flex-direction: column;
+        gap: 15px;
+      }
+      
+      .checkbox-group {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    @media (min-width: 768px) {
+      .checkbox-group {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+      }
+      
+      .checkbox-group.single-column {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    /* Feedback visivo per touch */
+    .submit-btn:active {
+      background: linear-gradient(135deg, #3a7bc8 0%, #6b58d4 100%);
+    }
+    
+    .checkbox-item:active {
+      transform: scale(0.98);
+    }
+    
+    /* Messaggio di successo */
+    .success-message {
+      background: #d4edda;
+      border: 2px solid #c3e6cb;
+      color: #155724;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      font-size: 20px;
+      text-align: center;
+      display: none;
+    }
+    
+    .error-message {
+      background: #f8d7da;
+      border: 2px solid #f5c6cb;
+      color: #721c24;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      font-size: 20px;
+      text-align: center;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+    
+  <div class="container">
+    <h2>💻 Registrazione Nuovo Utente</h2>
+    
+    <div class="success-message" id="successMessage">
+      ✅ Registrazione completata con successo!
+    </div>
+    
+    <div class="error-message" id="errorMessage">
+      ❌ Errore durante la registrazione. Riprova.
+    </div>
+    
+    <form id="registrationForm">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="nome">👤 Nome:</label>
+          <input type="text" id="nome" name="nome" required placeholder="Inserisci il tuo nome" value="Mario">
+        </div>
+        <div class="form-group">
+          <label for="cognome">👥 Cognome:</label>
+          <input type="text" id="cognome" name="cognome" required placeholder="Inserisci il tuo cognome" value="Rossi">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="peso">⚖️ Peso <span class="unit">(kg)</span>:</label>
+          <input type="number" id="peso" name="peso" min="1" max="300" step="0.1" required placeholder="Es. 70.5" value="80">
+        </div>
+        <div class="form-group">
+          <label for="altezza">📏 Altezza <span class="unit">(cm)</span>:</label>
+          <input type="number" id="altezza" name="altezza" min="50" max="250" step="1" required placeholder="Es. 175" value="190">
+        </div>
+      </div>
+
+      <fieldset>
+        <legend>🏥 Patologie</legend>
+        <div class="checkbox-group single-column">
+          <div class="checkbox-item" onclick="toggleCheckbox('patologie-nessuna')">
+            <input type="checkbox" id="patologie-nessuna" name="patologie" value="Nessuna">
+            <div class="checkbox-text">✅ Nessuna</div>
+          </div>
+          <div class="checkbox-item" onclick="toggleCheckbox('patologie-dolori')">
+            <input type="checkbox" id="patologie-dolori" name="patologie" value="Dolori Muscolari">
+            <div class="checkbox-text">💪 Dolori muscolari</div>
+          </div>
+          <div class="checkbox-item" onclick="toggleCheckbox('patologie-gola')">
+            <input type="checkbox" id="patologie-gola" name="patologie" value="Mal Di Gola">
+            <div class="checkbox-text">💊 Mal di gola</div>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>🚫 Intolleranze</legend>
+        <div class="checkbox-group single-column">
+          <div class="checkbox-item" onclick="toggleCheckbox('intolleranze-nessuna')">
+            <input type="checkbox" id="intolleranze-nessuna" name="intolleranze" value="Nessuna">
+            <div class="checkbox-text">✅ Nessuna</div>
+          </div>
+          <div class="checkbox-item" onclick="toggleCheckbox('intolleranze-lattosio')">
+            <input type="checkbox" id="intolleranze-lattosio" name="intolleranze" value="Lattosio">
+            <div class="checkbox-text">🍦 Lattosio</div>
+          </div>
+          <div class="checkbox-item" onclick="toggleCheckbox('intolleranze-glutine')">
+            <input type="checkbox" id="intolleranze-glutine" name="intolleranze" value="Glutine">
+            <div class="checkbox-text">🌾 Glutine</div>
+          </div>
+        </div>
+      </fieldset>
+      
+      <button class="submit-btn" onclick="inviaDati()">
+        🚀 Registra Utente
+      </button>
+    </form>
+  </div>
+
+  <script>
+
+
+  // Compatibilità: trova il genitore con classe "checkbox-item"
+  function getCheckboxItem(element) {
+    while (element && element !== document) {
+      if (element.className && element.className.indexOf('checkbox-item') !== -1) {
+        return element;
+      }
+      element = element.parentNode;
+    }
+    return null;
+  }
+
+  function showMessage(type, message) {
+    var successMsg = document.getElementById('successMessage');
+    var errorMsg = document.getElementById('errorMessage');
+
+    successMsg.style.display = 'none';
+    errorMsg.style.display = 'none';
+
+    if (type === 'success') {
+      successMsg.innerText = message;
+      successMsg.style.display = 'block';
+    } else {
+      errorMsg.innerText = message;
+      errorMsg.style.display = 'block';
+    }
+
+    setTimeout(function () {
+      successMsg.style.display = 'none';
+      errorMsg.style.display = 'none';
+    }, 5000);
+  }
+
+  function resetForm() {
+    document.getElementById('registrationForm').reset();
+
+    var items = document.getElementsByClassName('checkbox-item');
+    for (var i = 0; i < items.length; i++) {
+      items[i].className = items[i].className.replace('checked', '').replace('disabled', '');
+    }
+
+    var checkboxes = document.querySelectorAll('input[type="checkbox"]');
+    for (var i = 0; i < checkboxes.length; i++) {
+      checkboxes[i].checked = false;
+    }
+
+    getCheckboxItem(document.getElementById('patologie-nessuna')).className = 'checkbox-item';
+    getCheckboxItem(document.getElementById('intolleranze-nessuna')).className = 'checkbox-item';
+  }
+
+  function toggleCheckbox(checkboxId) {
+    var checkbox = document.getElementById(checkboxId);
+    var checkboxItem = getCheckboxItem(checkbox);
+
+    if (checkboxItem.className.indexOf('disabled') !== -1) {
+      return;
+    }
+
+    checkbox.checked = !checkbox.checked;
+    updateCheckboxState(checkbox);
+
+    if (checkbox.name === 'patologie') {
+      handlePatologieLogic(checkbox);
+    } else if (checkbox.name === 'intolleranze') {
+      handleIntolleranzeLogic(checkbox);
+    }
+  }
+
+  function updateCheckboxState(checkbox) {
+    var item = getCheckboxItem(checkbox);
+    if (checkbox.checked) {
+      if (item.className.indexOf('checked') === -1) {
+        item.className += ' checked';
+      }
+    } else {
+      item.className = item.className.replace('checked', '');
+    }
+  }
+
+  function handlePatologieLogic(clickedCheckbox) {
+    var all = document.querySelectorAll('input[name="patologie"]');
+    var nessuna = document.getElementById('patologie-nessuna');
+
+    if (clickedCheckbox.id === 'patologie-nessuna') {
+      if (clickedCheckbox.checked) {
+        for (var i = 0; i < all.length; i++) {
+          if (all[i] !== nessuna) {
+            all[i].checked = false;
+            updateCheckboxState(all[i]);
+            getCheckboxItem(all[i]).className += ' disabled';
+          }
+        }
+      } else {
+        for (var i = 0; i < all.length; i++) {
+          if (all[i] !== nessuna) {
+            getCheckboxItem(all[i]).className = getCheckboxItem(all[i]).className.replace('disabled', '');
+          }
+        }
+      }
+    } else {
+      if (clickedCheckbox.checked) {
+        nessuna.checked = false;
+        updateCheckboxState(nessuna);
+        getCheckboxItem(nessuna).className += ' disabled';
+      } else {
+        var anyChecked = false;
+        for (var i = 0; i < all.length; i++) {
+          if (all[i] !== nessuna && all[i].checked) {
+            anyChecked = true;
+            break;
+          }
+        }
+        if (!anyChecked) {
+          //getCheckboxItem(nessuna).className = getCheckboxItem(nessuna).className.replace('disabled', '');
+          getCheckboxItem(nessuna).className = getCheckboxItem(nessuna).className.replace(/\bdisabled\b/g, '').trim();
+
+        }
+      }
+    }
+  }
+
+  function handleIntolleranzeLogic(clickedCheckbox) {
+    var all = document.querySelectorAll('input[name="intolleranze"]');
+    var nessuna = document.getElementById('intolleranze-nessuna');
+
+    if (clickedCheckbox.id === 'intolleranze-nessuna') {
+      if (clickedCheckbox.checked) {
+        for (var i = 0; i < all.length; i++) {
+          if (all[i] !== nessuna) {
+            all[i].checked = false;
+            updateCheckboxState(all[i]);
+            getCheckboxItem(all[i]).className += ' disabled';
+          }
+        }
+      } else {
+        for (var i = 0; i < all.length; i++) {
+          if (all[i] !== nessuna) {
+            getCheckboxItem(all[i]).className = getCheckboxItem(all[i]).className.replace('disabled', '');
+          }
+        }
+      }
+    } else {
+      if (clickedCheckbox.checked) {
+        nessuna.checked = false;
+        updateCheckboxState(nessuna);
+        getCheckboxItem(nessuna).className += ' disabled';
+      } else {
+        var anyChecked = false;
+        for (var i = 0; i < all.length; i++) {
+          if (all[i] !== nessuna && all[i].checked) {
+            anyChecked = true;
+            break;
+          }
+        }
+        if (!anyChecked) {
+          //getCheckboxItem(nessuna).className = getCheckboxItem(nessuna).className.replace('disabled', '');
+          getCheckboxItem(nessuna).className = getCheckboxItem(nessuna).className.replace(/\bdisabled\b/g, '').trim();
+
+        }
+      }
+    }
+  }
+  
+  function inviaDati() {
+  var nome = document.getElementById('nome').value.trim();
+  var cognome = document.getElementById('cognome').value.trim();
+  var peso = document.getElementById('peso').value;
+  var altezza = document.getElementById('altezza').value;
+
+  // Validazioni
+  if (!nome) {
+    showMessage('error', '❌ Per favore inserisci il nome');
+    return;
+  }
+  if (!cognome) {
+    showMessage('error', '❌ Per favore inserisci il cognome');
+    return;
+  }
+  if (!peso || peso <= 0) {
+    showMessage('error', '❌ Per favore inserisci un peso valido');
+    return;
+  }
+  if (!altezza || altezza <= 0) {
+    showMessage('error', '❌ Per favore inserisci un\'altezza valida');
+    return;
+  }
+
+  // Raccogli patologie e intolleranze
+  var patologie = [];
+  var intolleranze = [];
+  
+  var patologieChecks = document.querySelectorAll('input[name="patologie"]:checked');
+  for (var i = 0; i < patologieChecks.length; i++) {
+    patologie.push(patologieChecks[i].value);
+  }
+  
+  var intolleranzeChecks = document.querySelectorAll('input[name="intolleranze"]:checked');
+  for (var i = 0; i < intolleranzeChecks.length; i++) {
+    intolleranze.push(intolleranzeChecks[i].value);
+  }
+
+  // ✅ CREA OGGETTO JSON CON form_type
+  var formData = {
+    formtype: "registrazione", 
+    nome: nome,
+    cognome: cognome,
+    peso: parseFloat(peso),
+    altezza: parseFloat(altezza),
+    patologie: patologie.join(',') || 'Nessuna',
+    intolleranze: intolleranze.join(',') || 'Nessuna'
+  };
+
+  console.log('📤 Invio dati:', formData);  // ✅ Debug
+
+
+  fetch('http://localhost:8080/submit_form', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(formData)
+  })
+  .then(function(response) {
+    return response.json();  // ✅ Leggi JSON
+  })
+  .then(function(data) {
+    if (data.status === 'success') {
+      // ✅ Redirect se c'è redirect_url
+      if (data.redirect_url) {
+        window.location.href = data.redirect_url;
+      } else {
+        showMessage('success', "✅ Dati inviati con successo!");
+      }
+    } else {
+      showMessage('error', "❌ Errore: " + data.message);
+    }
+  })
+  .catch(function(error) {
+    console.error('❌ Errore:', error);
+    showMessage('error', "❌ Errore di rete.");
+  });
+
+}
+
+
+  document.addEventListener('DOMContentLoaded', function () {
+    getCheckboxItem(document.getElementById('patologie-nessuna')).className = 'checkbox-item';
+    getCheckboxItem(document.getElementById('intolleranze-nessuna')).className = 'checkbox-item';
+  });
+</script>
+
+</body>
+</html>

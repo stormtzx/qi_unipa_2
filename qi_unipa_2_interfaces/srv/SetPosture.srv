@@ -1,0 +1,7 @@
+# Request
+string posture_name
+float32 speed
+---
+# Response
+bool success
+string message

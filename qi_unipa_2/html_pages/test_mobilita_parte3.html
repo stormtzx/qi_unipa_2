@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Mobilità - Parte 3: Equilibrio tallone-punta</title>
+  <style type="text/css">
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+      font-size: 1.8rem;
+      color: #333;
+    }
+
+    .progress {
+      font-size: 0.9rem;
+      color: #888;
+      margin-bottom: 20px;
+    }
+
+    .info {
+      font-size: 1.1rem;
+      margin-bottom: 20px;
+      color: #555;
+    }
+
+    #cronometro {
+      font-size: 1.2rem;
+      margin-bottom: 20px;
+      color: #1565c0;
+      font-weight: bold;
+    }
+
+    .button-container {
+      display: block;
+    }
+
+    .action-button {
+      display: block;
+      width: 80%;
+      max-width: 300px;
+      margin: 10px auto;
+      padding: 15px;
+      font-size: 1.1rem;
+      border: none;
+      border-radius: 10px;
+      background-color: #4CAF50;
+      color: white;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    .action-button:hover:not(:disabled) {
+      background-color: #45a049;
+    }
+
+    .action-button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    .action-button.available {
+      background-color: #4CAF50;
+      cursor: pointer;
+    }
+
+    .action-button.available:hover {
+      background-color: #45a049;
+    }
+
+    .status-label {
+      font-size: 0.85rem;
+      margin-top: 5px;
+      color: #888;
+      min-height: 20px;
+    }
+
+    #message {
+      margin-top: 20px;
+      font-size: 1rem;
+      font-weight: bold;
+    }
+
+    .message-success {
+      color: #2e7d32;
+    }
+
+    .message-error {
+      color: #c62828;
+    }
+
+    .message-warning {
+      color: #f57f17;
+    }
+  </style>
+</head>
+<body>
+
+  <h1 id="titolo">Test 3: Equilibrio tallone-punta</h1>
+  <div class="progress">Progresso: 3/5</div>
+  
+  <div class="info">
+    <p><strong>Mantieni l'equilibrio in posizione tallone-punta</strong></p>
+    <p>per il tempo massimo possibile.</p>
+  </div>
+
+  <div id="cronometro">Tempo trascorso: 0 secondi</div>
+
+  <div class="button-container">
+    <div>
+      <button id="btn1" class="action-button" disabled>≥20s</button>
+      <div class="status-label" id="label1">Disponibile dopo 20 secondi</div>
+    </div>
+    
+    <div>
+      <button id="btn2" class="action-button" disabled>10-20s</button>
+      <div class="status-label" id="label2">Disponibile dopo 10 secondi</div>
+    </div>
+    
+    <div>
+      <button id="btn3" class="action-button">&lt;10s</button>
+    </div>
+  </div>
+
+  <div id="message"></div>
+
+  <script type="text/javascript">
+
+
+    
+
+// ========== STATO GLOBALE ==========
+
+let redirectUrl = null;
+let postSuccess = false;
+let secondi = 0;
+let timerRunning = true;
+
+// ✅ FIX: Calcolo punteggio automatico dai secondi
+function calcolaPunteggio(tempoSeconde) {
+  let score;
+  let stato;
+  
+  if (tempoSeconde >= 20) {
+    score = 2;  // ≥20s = 2 punti (max equilibrio)
+    stato = '≥20s';
+  } else if (tempoSeconde >= 10) {
+    score = 1;  // 10-20s = 1 punto
+    stato = '10-20s';
+  } else {
+    score = 0;  // <10s = 0 punti (min equilibrio)
+    stato = '<10s';
+  }
+  
+  console.log(`[PUNTEGGIO CALCOLATO] Tempo: ${tempoSeconde}s → Score: ${score} (${stato})`);
+  
+  return { score, stato };
+}
+
+// ========== FUNZIONE: INVIA RISPOSTA (OPZIONE C-SAFE) ==========
+
+function inviaRisposta() {
+  timerRunning = false;
+  
+  // ✅ FIX: Calcola punteggio automaticamente dai secondi
+  const { score, stato } = calcolaPunteggio(secondi);
+  
+  console.log('[TEST-MOBILITA-3] Test terminato:', stato, '- Score:', score, '- Tempo:', secondi);
+
+  // Leggi o crea sessionStorage con i dati del test di mobilità
+  const mobilitaDataStr = sessionStorage.getItem('mobilita_test');
+  let mobilitaData = mobilitaDataStr ? JSON.parse(mobilitaDataStr) : {};
+
+  // Salva il risultato nel sessionStorage
+  mobilitaData.test3 = {
+    score: score,
+    stato: stato,
+    tempo_secondi: secondi
+  };
+  sessionStorage.setItem('mobilita_test', JSON.stringify(mobilitaData));
+
+  console.log('[TEST-MOBILITA-3] SessionStorage aggiornato:', mobilitaData);
+
+  // ✅ FIX: Payload con punteggio calcolato automaticamente
+  const payload = {
+    formtype: 'mobilita_test3',
+    test_id: 'test3',
+    score: score,
+    stato: stato,
+    tempo_secondi: secondi,
+    timestamp: new Date().toISOString()
+  };
+
+  console.log('[TEST-MOBILITA-3] Invio payload:', JSON.stringify(payload, null, 2));
+
+  // Disabilita bottoni
+  document.querySelectorAll('.action-button').forEach(btn => btn.disabled = true);
+  document.getElementById('message').innerHTML = '<span class="message-warning">⏳ Invio risposta...</span>';
+
+  // Reset flags
+  postSuccess = false;
+  redirectUrl = null;
+
+  // ========== THREAD 1: POST con TIMEOUT 2 sec ==========
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 2000);
+
+  fetch('/submit_form', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    signal: controller.signal
+  })
+  .then(function(response) {
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      throw new Error(`Errore HTTP ${response.status}`);
+    }
+    return response.json();
+  })
+  .then(function(data) {
+    console.log('[TEST-MOBILITA-3] ✅ Response dal server:', data);
+
+    if (data.status === 'success') {
+      postSuccess = true;
+      redirectUrl = data.redirect_url || 'test_mobilita_parte4.html';
+      console.log('[TEST-MOBILITA-3] POST OK, redirect salvato:', redirectUrl);
+      
+      document.getElementById('message').innerHTML = '<span class="message-success">✅ Risposta ricevuta! Pepper sta parlando...</span>';
+    } else {
+      throw new Error(data.message || 'Errore sconosciuto dal server');
+    }
+  })
+  .catch(function(error) {
+    clearTimeout(timeoutId);
+    
+    if (error.name === 'AbortError') {
+      console.warn('[TEST-MOBILITA-3] ⚠️ TIMEOUT POST');
+      document.getElementById('message').innerHTML = '<span class="message-warning">⚠️ Server lento, ma continuo...</span>';
+    } else if (error instanceof TypeError) {
+      console.error('[TEST-MOBILITA-3] ❌ Errore connessione:', error);
+      document.getElementById('message').innerHTML = '<span class="message-error">❌ Errore di connessione</span>';
+    } else {
+      console.error('[TEST-MOBILITA-3] ❌ Errore:', error);
+      document.getElementById('message').innerHTML = `<span class="message-error">❌ ${error.message}</span>`;
+    }
+    
+    postSuccess = false;
+  });
+
+  // ========== THREAD 2: Timer parallelo (3 secondi) ==========
+  setTimeout(function() {
+    console.log('[TEST-MOBILITA-3] Timer 3 sec scaduto');
+    
+    if (!postSuccess) {
+      console.warn('[TEST-MOBILITA-3] ⚠️ POST non riuscito, uso fallback');
+      redirectUrl = 'test_mobilita_parte4.html';
+    }
+    
+    console.log('[TEST-MOBILITA-3] Redirect a:', redirectUrl);
+    window.location.href = redirectUrl;
+  }, 3000);
+}
+
+// ✅ FIX: Aggiorna disponibilità bottoni in tempo reale
+function aggiornaBottoni() {
+  const btn1 = document.getElementById('btn1');
+  const btn2 = document.getElementById('btn2');
+  const label1 = document.getElementById('label1');
+  const label2 = document.getElementById('label2');
+
+  // Bottone 1: ≥20s
+  if (secondi >= 20) {
+    btn1.disabled = false;
+    btn1.classList.add('available');
+    label1.textContent = '✅ Disponibile (massimo equilibrio!)';
+    label1.style.color = '#2e7d32';
+  } else {
+    btn1.disabled = true;
+    btn1.classList.remove('available');
+    label1.textContent = `Disponibile tra ${20 - secondi} secondi`;
+    label1.style.color = '#888';
+  }
+
+  // Bottone 2: 10-20s
+  if (secondi >= 10) {
+    btn2.disabled = false;
+    btn2.classList.add('available');
+    label2.textContent = '✅ Disponibile (equilibrio moderato)';
+    label2.style.color = '#2e7d32';
+  } else {
+    btn2.disabled = true;
+    btn2.classList.remove('available');
+    label2.textContent = `Disponibile tra ${10 - secondi} secondi`;
+    label2.style.color = '#888';
+  }
+}
+
+// ========== INIT ==========
+
+window.onload = function() {
+  console.log('[TEST-MOBILITA-3] Pagina caricata');
+
+  // ✅ FIX: Tutti i bottoni ora chiamano automaticamente la funzione con punteggio calcolato
+  document.getElementById('btn1').onclick = function() {
+    inviaRisposta();
+  };
+
+  document.getElementById('btn2').onclick = function() {
+    inviaRisposta();
+  };
+
+  document.getElementById('btn3').onclick = function() {
+    inviaRisposta();
+  };
+
+  // Avvia cronometro con controllo e aggiornamento bottoni
+  setInterval(function() {
+    if (timerRunning) {
+      secondi++;
+      document.getElementById('cronometro').innerHTML = 'Tempo trascorso: ' + secondi + ' secondi';
+      
+      // ✅ FIX: Aggiorna lo stato dei bottoni
+      aggiornaBottoni();
+    }
+  }, 1000);
+
+  // Inizializza stato bottoni
+  aggiornaBottoni();
+};
+
+  </script>
+
+</body>
+</html>

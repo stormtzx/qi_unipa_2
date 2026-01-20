@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scelta</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      text-align: center;
+      background-color: #f2f2f2;
+      font-family: Arial, sans-serif;
+    }
+    h1 {
+      margin: 40px 20px;
+      font-size: 2rem;
+    }
+    .button-container {
+      margin-top: 30px;
+    }
+    .button {
+      padding: 20px 40px;
+      font-size: 2rem;
+      margin: 20px;
+      border: none;
+      border-radius: 15px;
+      color: white;
+    }
+    .yes {
+      background-color: #4CAF50;
+    }
+    .no {
+      background-color: #f44336;
+    }
+  </style>
+</head>
+<body>
+  <h1>Vuoi continuare?</h1>
+  <div class="button-container">
+    <button class="button yes" onclick="handleClick('si')">Sì</button>
+    <button class="button no" onclick="handleClick('no')">No</button>
+  </div>
+
+  <script>
+  /* Decommentare se si vuole inoltrare la risposta al server
+
+  function handleClick(scelta) {
+  var payload = {
+    form_type: "si_no",
+    risposta: scelta
+  };
+
+  fetch('http://localhost:8080/submit_form', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(payload)
+  })
+  .then(function(response) {
+    if (response.ok) {
+      alert("✅ Risposta inviata!");
+      // Nascondi webview se su tablet Pepper
+      if (typeof QiSession !== "undefined") {
+        QiSession(function(session) {
+          session.service("ALTabletService").then(function(tablet) {
+            tablet.hideWebview();
+          });
+        });
+      }
+    } else {
+      alert("❌ Errore durante l'invio. Riprova!");
+    }
+  })
+  .catch(function(e) { 
+    alert("❌ Errore invio: " + e); 
+  });
+}
+*/
+  </script>
+</body>
+</html>

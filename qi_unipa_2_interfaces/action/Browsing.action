@@ -1,0 +1,15 @@
+# Goal
+string html_page
+bool use_tablet
+bool wait_for_data     # DEPRECATO: se true, aspetta dati form prima di completare
+float32 timeout        # DEPRECATO: timeout in secondi (default 120.0)
+---
+# Result
+bool success
+string form_data_json  # NEW: dati form raccolti (vuoto se wait_for_data=false)
+---
+# Feedback
+string current_status
+string tablet_ip
+string webserver_ip
+float32 timeout_remaining  # NEW: countdown timeout

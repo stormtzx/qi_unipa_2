@@ -1,0 +1,24 @@
+# Goal - Parametri movimento con obstacle avoidance
+float32 x                    # Distanza avanti/indietro (metri)
+float32 y                    # Movimento laterale (metri)
+float32 theta                # Rotazione iniziale (radianti)
+
+---
+
+# Result - Risultato finale movimento
+bool success                 # True se movimento completato (≥80% distanza)
+string reason                # "reached", "obstacle_blocked", "timeout", "error", "incomplete"
+float32 distance_covered     # Distanza effettivamente percorsa (metri)
+int32 obstacles_detected     # Numero ostacoli rilevati durante il movimento
+int32 recovery_attempts      # Numero tentativi di evasione ostacoli eseguiti
+
+---
+
+# Feedback - Stato durante esecuzione (ogni 1 secondo)
+string current_status          # "initializing", "rotating", "moving_forward", "obstacle_detected", "evading_obstacle", "obstacle_cleared", "completed", "failed", "timeout"
+float32 distance_covered       # Distanza percorsa finora (metri)
+float32 remaining_distance     # Distanza rimanente al target (metri)
+float32 front_sonar_distance   # Lettura sonar frontale attuale (metri) (proveniente dal topic sul sonar)
+int32 obstacles_detected       # Numero ostacoli rilevati finora
+int32 recovery_attempts        # Numero tentativi evasione finora
+float32 elapsed_time           # Tempo trascorso dall'inizio (secondi)

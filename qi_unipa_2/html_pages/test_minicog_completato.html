@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test MiniCog - Completato</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background-color: #f0f0f0;
+      text-align: center;
+      padding: 40px 20px;
+    }
+    
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background-color: white;
+      border-radius: 10px;
+      padding: 40px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .success-icon {
+      font-size: 80px;
+      margin-bottom: 20px;
+    }
+    
+    h1 {
+      font-size: 28px;
+      color: #2e7d32;
+      margin-bottom: 20px;
+    }
+    
+    .result-box {
+      background-color: #e8f5e9;
+      border-left: 4px solid #4CAF50;
+      padding: 20px;
+      margin: 30px 0;
+      text-align: left;
+      border-radius: 5px;
+    }
+    
+    .result-item {
+      margin: 15px 0;
+      font-size: 16px;
+      line-height: 1.6;
+    }
+    
+    .result-item strong {
+      color: #1565c0;
+    }
+    
+    .result-value {
+      font-size: 18px;
+      font-weight: bold;
+      color: #2e7d32;
+    }
+    
+    .score-display {
+      background-color: #f5f5f5;
+      padding: 15px;
+      margin: 20px 0;
+      border-radius: 5px;
+      font-size: 18px;
+    }
+    
+    .score-display .label {
+      color: #555;
+      margin-bottom: 8px;
+    }
+    
+    .score-display .value {
+      font-size: 32px;
+      font-weight: bold;
+      color: #2e7d32;
+    }
+    
+    .message {
+      font-size: 16px;
+      color: #555;
+      margin: 30px 0;
+      font-style: italic;
+      line-height: 1.6;
+    }
+    
+    .info-text {
+      font-size: 14px;
+      color: #888;
+      margin-top: 20px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="success-icon">✅</div>
+    
+    <h1>Test MiniCog Completato!</h1>
+    
+    <div class="message">
+      Grazie per aver completato la valutazione cognitiva.
+    </div>
+    
+    <div id="results-container">
+      <!-- Riempito da JavaScript -->
+    </div>
+    
+    <div class="info-text">
+      <p>I tuoi dati sono stati salvati e trasmessi al sistema.</p>
+      <p>Pepper ti comunicherà i risultati.</p>
+    </div>
+  </div>
+<script type="text/javascript">
+
+// ========== FUNZIONE: MOSTRA RISULTATI ==========
+
+function mostraRisultati() {
+  const minicogDataStr = sessionStorage.getItem('minicog_test');
+  
+  if (!minicogDataStr) {
+    console.warn('[MINICOG-COMPLETATO] Nessun dato in sessionStorage');
+    return;
+  }
+  
+  const minicogData = JSON.parse(minicogDataStr);
+  
+  // ✅ CORRETTO: Estrai dati dalle parti
+  const parte2_score = minicogData.parte2?.score || 0;
+  const parte2_ore = minicogData.parte2?.ore_impostate || '-';
+  const parte2_minuti = minicogData.parte2?.minuti_impostati || '-';
+  
+  const parte3_score = 1; // Fisso
+  
+  const parte4_score = minicogData.parte4?.score || 0;
+  const parte4_corrette = minicogData.parte4?.corrette || 0;
+  
+  const punteggio_totale = parte2_score + parte3_score + parte4_score;
+  
+  // Costruisci HTML risultati
+  let html = `
+    <div class="result-box">
+      <div class="result-item">
+        <strong>Parte 2: Orologio (impostazione)</strong>
+        <br>Ora impostata: ${parte2_ore}:${String(parte2_minuti).padStart(2, '0')}
+        <br>Punteggio: <span class="result-value">${parte2_score}/7</span>
+      </div>
+      
+      <hr style="margin: 15px 0; border: none; border-top: 1px solid #ccc;">
+      
+      <div class="result-item">
+        <strong>Parte 3: Orologio (disegno)</strong>
+        <br>Punteggio: <span class="result-value">${parte3_score}/1</span>
+      </div>
+      
+      <hr style="margin: 15px 0; border: none; border-top: 1px solid #ccc;">
+      
+      <div class="result-item">
+        <strong>Parte 4: Verifica parole</strong>
+        <br>Parole corrette: <span class="result-value">${parte4_corrette}/3</span>
+        <br>Punteggio: <span class="result-value">${parte4_score}/7</span>
+      </div>
+    </div>
+    
+    <div class="score-display">
+      <div class="label">Punteggio Totale MiniCog:</div>
+      <div class="value">${punteggio_totale}/15</div>
+    </div>
+  `;
+  
+  document.getElementById('results-container').innerHTML = html;
+  console.log('[MINICOG-COMPLETATO] Risultati visualizzati');
+  console.log('[MINICOG-COMPLETATO] Dati completi:', minicogData);
+}
+
+// ========== INIT ==========
+
+window.onload = function() {
+  console.log('[MINICOG-COMPLETATO] Pagina caricata');
+  mostraRisultati();
+};
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,89 @@
+# Registrazione 
+ros2 action send_goal /pepper/actions/browsing qi_unipa_2_interfaces/action/Browsing "{html_page: 'registrazione.html', use_tablet: false}"
+
+# MiniCog 
+ros2 action send_goal /pepper/actions/browsing qi_unipa_2_interfaces/action/Browsing "{html_page: 'test_minicog_parte1.html', use_tablet: false}"
+
+
+# Ottenere tutte le info sull'anziano su neo4j
+
+MATCH (a:Anziano)
+RETURN a.nome AS nome,
+       a.cognome AS cognome,
+       a.peso AS peso,
+       a.altezza AS altezza,
+       a.patologie AS patologie,
+       a.intolleranze AS intolleranze
+
+
+# Ottenere i risultati del test cognitivo
+
+MATCH (a:Anziano)-[r1:HA_ESEGUITO]->(t:TestCognitivo {tipo: 'minicog'})
+OPTIONAL MATCH (t)-[r2:DETERMINA]->(s:StatoCognitivo)
+RETURN 
+    t.tipo AS test_tipo,
+    t.data AS data_esecuzione,
+    t.punteggio AS punteggio_totale,
+    t.parte2_orologio AS parte2_orologio_lancette,
+    t.parte3_disegno AS parte3_disegno,
+    t.parte4_parole AS parte4_parole,
+    t.parole_corrette AS parole_corrette,
+    s.stato AS stato_cognitivo
+
+# contenuto tabella risultati test cognitivo: (:TestCognitivo {tipo: "MiniCog", data: "2025-08-05", punteggio: "15"})
+
+
+
+
+#Ottenere risultati del test MUST
+
+MATCH (a:Anziano)-[r1:HA_ESEGUITO]->(t:TestNutrizionale {tipo: 'must'})
+OPTIONAL MATCH (t)-[r2:DETERMINA]->(s:StatoNutrizionale)
+RETURN 
+    t.tipo AS test_tipo,
+    t.data AS data_esecuzione,
+    t.punteggio AS punteggio_totale,
+    t.parte1_bmi AS parte1_bmi,
+    t.parte2_perdita_peso AS parte2_perdita_peso,
+    t.parte3_digiuno AS parte3_digiuno,
+    s.stato AS stato_nutrizionale,
+    s.statoFisico AS stato_fisico,
+    s.BMI AS bmi_calcolato
+
+# contenuto tabella risultati test nutrizionale:   (:TestNutrizionale {tipo: "MUST", data: "2025-08-05", punteggio: "0"})
+
+
+
+
+#Ottenere risultati del test di Mobilità
+
+MATCH (a:Anziano)-[r1:HA_ESEGUITO]->(t:TestMobilita)
+OPTIONAL MATCH (t)-[r2:DETERMINA]->(s:StatoMobilita)
+RETURN 
+    t.data AS data_esecuzione,
+    t.punteggio AS punteggio_totale,
+    t.test1_piedi_uniti AS test1_piedi_uniti,
+    t.test2_piedi_sfalsati AS test2_piedi_sfalsati,
+    t.test3_piedi_tandem AS test3_piedi_tandem,
+    t.test4_camminata AS test4_camminata,
+    t.test5_sedia AS test5_sedia,
+    s.stato AS stato_mobilita
+
+
+# contenuto tabella risultati test di mobilità:    (:TestMobilita {data: 2025-01-01, punteggio: 9})
+
+
+
+per cancellare nodi (esempio)
+
+MATCH (n:TestNutrizionale {tipo: "MUST", data: "2025-08-05", punteggio: "0"})
+DETACH DELETE n
+
+
+MATCH (n:Anziano {nome: "Mario"})
+DETACH DELETE n
+
+
+
+MATCH (n:TestNutrizionale {tipo: "MUST"})
+DETACH DELETE n

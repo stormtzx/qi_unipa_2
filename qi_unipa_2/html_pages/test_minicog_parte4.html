@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test MiniCog - Parte 4: Verifica Parole</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background-color: #f0f0f0;
+      text-align: center;
+      padding-top: 40px;
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+    .progress {
+      font-size: 14px;
+      color: #888;
+      margin-bottom: 30px;
+    }
+    .info {
+      font-size: 16px;
+      color: #555;
+      margin-bottom: 30px;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .parole-container {
+      background-color: white;
+      border: 2px solid #4CAF50;
+      border-radius: 10px;
+      padding: 30px;
+      margin: 30px auto;
+      max-width: 600px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .parola-opzione {
+      display: inline-block;
+      margin: 10px;
+      padding: 15px 25px;
+      font-size: 18px;
+      font-weight: bold;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      background-color: #e8f4f8;
+      color: #003366;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    .parola-opzione:hover {
+      background-color: #b3e0ff;
+      border-color: #4CAF50;
+      transform: scale(1.05);
+    }
+    .parola-opzione.selezionata {
+      background-color: #4CAF50;
+      color: white;
+      border-color: #4CAF50;
+    }
+    .parole-originali {
+      text-align: left;
+      margin-top: 20px;
+      padding: 15px;
+      background-color: #f5f5f5;
+      border-radius: 8px;
+      display: none;
+    }
+    .parole-originali p {
+      margin: 8px 0;
+      font-size: 16px;
+    }
+    .button-container {
+      margin-top: 40px;
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    button {
+      font-size: 16px;
+      padding: 12px 30px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+    #message {
+      margin-top: 20px;
+      font-size: 16px;
+      font-weight: bold;
+    }
+    .message-success {
+      color: #2e7d32;
+    }
+    .message-error {
+      color: #c62828;
+    }
+    .message-warning {
+      color: #f57f17;
+    }
+    .score-display {
+      margin-top: 20px;
+      padding: 15px;
+      background-color: #e3f2fd;
+      border-radius: 8px;
+      font-size: 18px;
+      font-weight: bold;
+      color: #1565c0;
+    }
+  </style>
+</head>
+<body>
+
+
+  <h1>Test MiniCog - Parte 4</h1>
+  <div class="progress">Progresso: 4/4 - FINALE</div>
+  
+  <div class="info">
+    <p><strong>Ricordi le 3 parole da all'inizio?</strong></p>
+    <p>Seleziona le parole che ti abbiamo mostrato all'inizio del test</p>
+  </div>
+
+
+  <div class="parole-container">
+    <h2>📝 Seleziona le parole corrette:</h2>
+    <div id="parole-opzioni">
+      <!-- Riempito da JavaScript -->
+    </div>
+
+
+    <div class="parole-originali">
+      <p><strong>Parole originali da ricordare:</strong></p>
+      <p id="parole-reminder"></p>
+    </div>
+
+
+    <div class="score-display" id="score-display"></div>
+  </div>
+
+
+  <div class="button-container">
+    <button onclick="valutaEInvia()">Valuta e Invia Tutto</button>
+    <button onclick="resetSelezione()">Ripristina Selezione</button>
+  </div>
+
+
+  <div id="message"></div>
+<script type="text/javascript">
+
+
+
+// ========== CONFIGURAZIONE ==========
+
+const paroleDisponibili = [
+  "Mela", "Chiave", "Libro", "Gatto", "Sedia", "Fiume",
+  "Fiore", "Orologio", "Pane", "Albero", "Scuola", "Luce"
+];
+
+let paroleOriginali = [];
+let paroleSelezionate = [];
+let redirectUrl = null;
+let postSuccess = false;
+let allMinicogData = {};
+
+// ========== FUNZIONE: SELEZIONA PAROLE RANDOM (da mostrare) ==========
+
+function selezionaParoleRandom(lista, n) {
+  let shuffled = [...lista];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled.slice(0, n);
+}
+
+// ========== FUNZIONE: MOSTRA OPZIONI ==========
+
+function mostraOpzioni(paroleOriginali) {
+  let paroleScrambled = selezionaParoleRandom(paroleDisponibili, 12);
+
+  const container = document.getElementById('parole-opzioni');
+  container.innerHTML = '';
+
+  paroleScrambled.forEach(function(parola) {
+    const btn = document.createElement('button');
+    btn.className = 'parola-opzione';
+    btn.textContent = parola;
+    btn.onclick = function() {
+      toggleParola(parola, btn);
+    };
+    container.appendChild(btn);
+  });
+
+  console.log('[MINICOG-PARTE4] Opzioni visualizzate');
+}
+
+// ========== FUNZIONE: TOGGLE PAROLA SELEZIONATA ==========
+
+function toggleParola(parola, btn) {
+  const index = paroleSelezionate.indexOf(parola);
+  
+  if (index === -1) {
+    if (paroleSelezionate.length < 3) {
+      paroleSelezionate.push(parola);
+      btn.classList.add('selezionata');
+      console.log('[MINICOG-PARTE4] Parola aggiunta:', parola);
+    }
+  } else {
+    paroleSelezionate.splice(index, 1);
+    btn.classList.remove('selezionata');
+    console.log('[MINICOG-PARTE4] Parola rimossa:', parola);
+  }
+
+  aggiornaScore();
+}
+
+// ========== FUNZIONE: AGGIORNA SCORE ==========
+
+function aggiornaScore() {
+  let corrette = 0;
+
+  paroleSelezionate.forEach(function(parola) {
+    if (paroleOriginali.includes(parola)) {
+      corrette++;
+    }
+  });
+
+  // ✅ CORRETTO: Punteggi 7/4/2/0
+  let score = 0;
+  if (corrette === 3) {
+    score = 7;  // Tutte e 3 corrette = 7 punti
+  } else if (corrette === 2) {
+    score = 4;  // 2 corrette = 2 + 2 = 4 punti
+  } else if (corrette === 1) {
+    score = 2;  // 1 corretta = 2 punti
+  } else {
+    score = 0;  // 0 corrette = 0 punti
+  }
+
+  const display = document.getElementById('score-display');
+  display.innerHTML = `Selezionate: ${paroleSelezionate.length}/3`;
+}
+
+// ========== FUNZIONE: RESET SELEZIONE ==========
+
+function resetSelezione() {
+  paroleSelezionate = [];
+  document.querySelectorAll('.parola-opzione').forEach(btn => {
+    btn.classList.remove('selezionata');
+  });
+  aggiornaScore();
+  console.log('[MINICOG-PARTE4] Selezione ripristinata');
+}
+
+// ========== FUNZIONE: VALUTA E INVIA (OPZIONE C-SAFE) ==========
+
+function valutaEInvia() {
+  console.log('[MINICOG-PARTE4] Valutazione finale e invio TUTTI i dati...');
+
+  if (paroleSelezionate.length === 0) {
+    alert('❌ Seleziona almeno una parola!');
+    return;
+  }
+
+  // ✅ CORRETTO: Calcola score parte 4 con nuovi punteggi 7/4/2/0
+  let corrette = 0;
+
+  paroleSelezionate.forEach(function(parola) {
+    if (paroleOriginali.includes(parola)) {
+      corrette++;
+    }
+  });
+
+  let score = 0;
+  if (corrette === 3) {
+    score = 7;  // Tutte e 3 corrette = 7 punti
+  } else if (corrette === 2) {
+    score = 4;  // 2 corrette = 2 + 2 = 4 punti
+  } else if (corrette === 1) {
+    score = 2;  // 1 corretta = 2 punti
+  } else {
+    score = 0;  // 0 corrette = 0 punti
+  }
+
+  const sbagliate = paroleSelezionate.length - corrette;
+
+  // Aggiungi parte 4 ai dati
+  allMinicogData.parte4 = {
+    score: score,
+    corrette: corrette,
+    sbagliate: sbagliate
+  };
+
+  console.log('[MINICOG-PARTE4] Dati finali:', allMinicogData);
+
+  // Calcola punteggio totale (0 + parte2 + 1 + parte4)
+  const scoreP2 = allMinicogData.parte2?.score || 0;
+  const scoreP3 = 1; // Fisso
+  const scoreP4 = score;
+
+  const punteggio_totale = scoreP2 + scoreP3 + scoreP4;
+
+  // Prepara payload FINALE con TUTTI i dati
+  const payload = {
+    formtype: 'minicog_parte4',
+    score: score,
+    corrette: corrette,
+    sbagliate: sbagliate,
+    timestamp: new Date().toISOString()
+  };
+
+  console.log('[MINICOG-PARTE4] Invio payload FINALE:', JSON.stringify(payload, null, 2));
+
+  // Mostra riepilogo
+  alert(`
+✅ Test MiniCog completato!
+
+Parte 2 (Orologio): ${scoreP2} punti
+Parte 3 (Disegno): ${scoreP3} punti
+Parte 4 (Verifica): ${scoreP4} punti
+
+PUNTEGGIO TOTALE: ${punteggio_totale}/15 punti
+  `);
+
+  // Disabilita bottoni
+  document.querySelectorAll('button').forEach(btn => btn.disabled = true);
+  document.getElementById('message').innerHTML = '<span class="message-warning">⏳ Invio dati finali al server...</span>';
+
+  // Reset flags
+  postSuccess = false;
+  redirectUrl = null;
+
+  // ========== THREAD 1: POST FINALE con TIMEOUT 3 sec (più lungo per dati completi) ==========
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+  fetch('/submit_form', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    signal: controller.signal
+  })
+  .then(function(response) {
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      throw new Error(`Errore HTTP ${response.status}`);
+    }
+    return response.json();
+  })
+  .then(function(data) {
+    console.log('[MINICOG-PARTE4] ✅ Response dal server:', data);
+
+    if (data.status === 'success') {
+      postSuccess = true;
+      redirectUrl = data.redirect_url || 'test_minicog_completato.html';
+      console.log('[MINICOG-PARTE4] POST OK - Redirect a:', redirectUrl);
+      
+      document.getElementById('message').innerHTML = `<span class="message-success">✅ Test MiniCog completato!<br>Punteggio: ${punteggio_totale}/15</span>`;
+    } else {
+      throw new Error(data.message || 'Errore sconosciuto dal server');
+    }
+  })
+  .catch(function(error) {
+    clearTimeout(timeoutId);
+    
+    if (error.name === 'AbortError') {
+      console.warn('[MINICOG-PARTE4] ⚠️ TIMEOUT POST');
+      document.getElementById('message').innerHTML = '<span class="message-warning">⚠️ Server lento, ma dati salvati</span>';
+      postSuccess = false;
+    } else if (error instanceof TypeError) {
+      console.error('[MINICOG-PARTE4] ❌ Errore connessione:', error);
+      document.getElementById('message').innerHTML = '<span class="message-error">❌ Errore di connessione</span>';
+      postSuccess = false;
+    } else {
+      console.error('[MINICOG-PARTE4] ❌ Errore:', error);
+      document.getElementById('message').innerHTML = `<span class="message-error">❌ ${error.message}</span>`;
+      postSuccess = false;
+    }
+
+    // Abilita bottoni di nuovo
+    document.querySelectorAll('button').forEach(btn => btn.disabled = false);
+  });
+
+  // ========== THREAD 2: Timer parallelo (5 secondi - più lungo per finale) ==========
+  setTimeout(function() {
+    console.log('[MINICOG-PARTE4] Timer 5 sec scaduto - Test COMPLETO!');
+    
+    if (!postSuccess) {
+      console.warn('[MINICOG-PARTE4] ⚠️ POST non riuscito, uso fallback');
+      redirectUrl = 'test_minicog_completato.html';
+    }
+    
+    if (!redirectUrl) {
+      redirectUrl = 'test_minicog_completato.html';
+    }
+    
+    console.log('[MINICOG-PARTE4] Redirect a:', redirectUrl);
+    
+    // Salva dati in sessionStorage per pagina finale
+    sessionStorage.setItem('minicog_test', JSON.stringify(allMinicogData));
+    
+    window.location.href = redirectUrl;
+  }, 5000);
+}
+
+// ========== INIT ==========
+
+window.onload = function() {
+  console.log('[MINICOG-PARTE4] Pagina caricata');
+
+  // Leggi sessionStorage
+  const minicogDataStr = sessionStorage.getItem('minicog_test');
+  if (!minicogDataStr) {
+    console.warn('[MINICOG-PARTE4] ⚠️ Nessun dato in sessionStorage!');
+    alert('Errore: sessionStorage vuoto! Ricomincia dal test 1');
+    window.location.href = 'test_minicog_parte1.html';
+    return;
+  }
+
+  allMinicogData = JSON.parse(minicogDataStr);
+  paroleOriginali = allMinicogData.parole_originali || [];
+
+  console.log('[MINICOG-PARTE4] Dati caricati:', allMinicogData);
+  console.log('[MINICOG-PARTE4] Parole originali:', paroleOriginali);
+
+  // Mostra opzioni
+  mostraOpzioni(paroleOriginali);
+
+  // Inizializza score
+  aggiornaScore();
+};
+
+</script>
+
+
+</body>
+</html>

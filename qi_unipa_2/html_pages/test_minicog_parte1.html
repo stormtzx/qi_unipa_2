@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test MiniCog - Parte 1: Parole da ricordare</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background-color: #f0f0f0;
+      text-align: center;
+      padding-top: 40px;
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+    .progress {
+      font-size: 14px;
+      color: #888;
+      margin-bottom: 30px;
+    }
+    .info {
+      font-size: 16px;
+      color: #555;
+      margin-bottom: 30px;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .parole-container {
+      background-color: white;
+      border: 2px solid #4CAF50;
+      border-radius: 10px;
+      padding: 40px;
+      margin: 30px auto;
+      max-width: 500px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .parole-container h2 {
+      color: #4CAF50;
+      margin-top: 0;
+      font-size: 20px;
+    }
+    .parola {
+      font-size: 32px;
+      font-weight: bold;
+      color: #1565c0;
+      margin: 20px 0;
+      padding: 15px;
+      background-color: #f5f5f5;
+      border-radius: 8px;
+    }
+    .istruzioni-finali {
+      font-size: 16px;
+      color: #555;
+      margin-top: 30px;
+      margin-bottom: 30px;
+      font-style: italic;
+    }
+    .button-container {
+      margin-top: 40px;
+    }
+    button {
+      font-size: 20px;
+      padding: 12px 40px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+    #message {
+      margin-top: 20px;
+      font-size: 16px;
+      font-weight: bold;
+    }
+    .message-success {
+      color: #2e7d32;
+    }
+    .message-error {
+      color: #c62828;
+    }
+    .message-warning {
+      color: #f57f17;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Test MiniCog - Parte 1</h1>
+  <div class="progress">Progresso: 1/4</div>
+  
+  <div class="info">
+    <p><strong>Ti verranno mostrate 3 parole.</strong></p>
+    <p>Leggi attentamente e memorizzale il meglio che puoi.</p>
+    <p>Le ripasserai alla fine del test.</p>
+  </div>
+
+  <div class="parole-container">
+    <h2>📝 Memorizza queste parole:</h2>
+    <div id="parole-list">
+      <!-- Riempito da JavaScript -->
+    </div>
+  </div>
+
+  <div class="istruzioni-finali">
+    Quando sei pronto/a, clicca il bottone qui sotto per continuare.
+  </div>
+
+  <div class="button-container">
+    <button id="btn-continua" onclick="procediAlTest2()" disabled>⏳ Caricamento...</button>
+  </div>
+
+  <div id="message"></div>
+
+  <script type="text/javascript">
+
+
+
+// ========== CONFIGURAZIONE ==========
+
+const paroleDisponibili = [
+  "Mela", "Chiave", "Libro", "Gatto", "Sedia", "Fiume",
+  "Fiore", "Orologio", "Pane", "Albero", "Scuola", "Luce"
+];
+
+let paroleScelte = [];
+let redirectUrl = null;
+let postSuccess = false;
+
+// ========== FUNZIONE: SELEZIONA 3 PAROLE RANDOM ==========
+
+function selezionaParoleRandom(lista, n) {
+  let shuffled = [...lista];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled.slice(0, n);
+}
+
+// ========== FUNZIONE: MOSTRA PAROLE ==========
+
+function mostraParole(parole) {
+  const paroleList = document.getElementById('parole-list');
+  paroleList.innerHTML = '';
+  
+  parole.forEach(function(parola) {
+    const paroleDiv = document.createElement('div');
+    paroleDiv.className = 'parola';
+    paroleDiv.textContent = parola;
+    paroleList.appendChild(paroleDiv);
+  });
+
+  console.log('[MINICOG-PARTE1] Parole visualizzate:', parole);
+}
+
+// ========== FUNZIONE: SALVA IN SESSIONSTORAGE ==========
+
+function salvaInSessionStorage(parole) {
+  const minicogData = {
+    parole_originali: parole,
+    timestamp_inizio: new Date().toISOString()
+  };
+
+  sessionStorage.setItem('minicog_test', JSON.stringify(minicogData));
+  console.log('[MINICOG-PARTE1] Dati salvati in sessionStorage:', minicogData);
+}
+
+// ========== FUNZIONE: INVIA DATI E PROCEDI (OPZIONE C-SAFE) ==========
+
+function procediAlTest2() {
+  console.log('[MINICOG-PARTE1] Utente pronto, invio dati...');
+
+  // Prepara payload
+  const payload = {
+    formtype: 'minicog_parte1',
+    parole_originali: paroleScelte,
+    timestamp: new Date().toISOString()
+  };
+
+  console.log('[MINICOG-PARTE1] Invio payload:', JSON.stringify(payload, null, 2));
+
+  // Disabilita bottone
+  document.getElementById('btn-continua').disabled = true;
+  document.getElementById('btn-continua').innerHTML = '⏳ Invio...';
+  document.getElementById('message').innerHTML = '<span class="message-warning">⏳ Invio dati al server...</span>';
+
+  // Reset flags
+  postSuccess = false;
+  redirectUrl = null;
+
+  // ========== THREAD 1: POST con TIMEOUT 2 sec ==========
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 2000);
+
+  fetch('/submit_form', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    signal: controller.signal
+  })
+  .then(function(response) {
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      throw new Error(`Errore HTTP ${response.status}`);
+    }
+    return response.json();
+  })
+  .then(function(data) {
+    console.log('[MINICOG-PARTE1] ✅ Response dal server:', data);
+
+    if (data.status === 'success') {
+      postSuccess = true;
+      redirectUrl = data.redirect_url || 'test_minicog_parte2.html';
+      console.log('[MINICOG-PARTE1] POST OK, redirect salvato:', redirectUrl);
+      
+      document.getElementById('message').innerHTML = '<span class="message-success">✅ Dati ricevuti! Pepper sta parlando...</span>';
+    } else {
+      throw new Error(data.message || 'Errore sconosciuto dal server');
+    }
+  })
+  .catch(function(error) {
+    clearTimeout(timeoutId);
+    
+    // ✅ Distingui errori
+    if (error.name === 'AbortError') {
+      console.warn('[MINICOG-PARTE1] ⚠️ TIMEOUT POST (>2 sec)');
+      document.getElementById('message').innerHTML = '<span class="message-warning">⚠️ Server lento, ma continuo...</span>';
+    } else if (error instanceof TypeError && error.message.includes('fetch')) {
+      console.error('[MINICOG-PARTE1] ❌ Errore connessione:', error);
+      document.getElementById('message').innerHTML = '<span class="message-error">❌ Errore di connessione</span>';
+    } else {
+      console.error('[MINICOG-PARTE1] ❌ Errore:', error);
+      document.getElementById('message').innerHTML = `<span class="message-error">❌ ${error.message}</span>`;
+    }
+    
+    // ⚠️ NON bloccare il redirect (fallback comunque)
+    // postSuccess rimane false
+    postSuccess = false;
+  });
+
+  // ========== THREAD 2: Timer parallelo (3 secondi FISSI) ==========
+  setTimeout(function() {
+    console.log('[MINICOG-PARTE1] Timer 3 sec scaduto');
+    
+    if (!postSuccess) {
+      console.warn('[MINICOG-PARTE1] ⚠️ POST non riuscito, uso fallback redirect');
+      redirectUrl = 'test_minicog_parte2.html';
+    }
+    
+    console.log('[MINICOG-PARTE1] Redirect a:', redirectUrl);
+    window.location.href = redirectUrl;
+  }, 3000); // 3 secondi FISSI
+}
+
+// ========== INIT ==========
+
+window.onload = function() {
+  console.log('[MINICOG-PARTE1] Pagina caricata');
+
+  // Seleziona 3 parole random
+  paroleScelte = selezionaParoleRandom(paroleDisponibili, 3);
+
+  // Salva in sessionStorage
+  salvaInSessionStorage(paroleScelte);
+
+  // Mostra le parole
+  mostraParole(paroleScelte);
+
+  // Abilita bottone
+  document.getElementById('btn-continua').disabled = false;
+  document.getElementById('btn-continua').innerHTML = 'Continua al Test 2';
+};
+
+  </script>
+
+</body>
+</html>

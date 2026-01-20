@@ -1,0 +1,8 @@
+# Request
+int32 camera_index  # 0=top, 1=bottom (default 0)
+int32 resolution    # 1=QVGA, 2=VGA, 3=4VGA, 4=HD (default 3)
+string file_name
+---
+# Response
+bool success
+string message

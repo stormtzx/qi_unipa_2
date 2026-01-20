@@ -1,0 +1,6 @@
+# Ottiene informazioni sullo stato d'animo dell'utente osservandolo
+#Request
+---
+#Response
+string emotion          # "happy", "sad", "angry", "surprised", "neutral"
+float32 confidence      # 0.0 - 1.0
