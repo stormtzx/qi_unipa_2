@@ -377,7 +377,7 @@ class QiUnipa2_movement(Node):
         if animation_type not in native_animations:
             available = ", ".join(sorted(native_animations.keys()))
             self.get_logger().error(
-                f"❌ Animazione '{request.animation_type}' non supportata.\n"
+                f" Animazione '{request.animation_type}' non supportata.\n"
                 f"   Disponibili: {available}"
             )
             response.success = False
@@ -391,17 +391,17 @@ class QiUnipa2_movement(Node):
         animation_path = native_animations[animation_type]
         
         try:
-            self.get_logger().info(f"🎭 Esecuzione: {animation_path}")
+            self.get_logger().info(f" Esecuzione: {animation_path}")
             
             # Esegui (bloccante)
             self.animation_player.run(animation_path, _async=False)
             
             response.success = True
             response.message = f"Animazione '{request.animation_type}' completata"
-            self.get_logger().info(f"✅ '{request.animation_type}' completata")
+            self.get_logger().info(f" '{request.animation_type}' completata")
             
         except Exception as e:
-            self.get_logger().error(f"❌ Errore animazione '{animation_path}': {e}")
+            self.get_logger().error(f" Errore animazione '{animation_path}': {e}")
             response.success = False
             response.message = f"Errore esecuzione: {str(e)}"
         
@@ -575,7 +575,7 @@ class QiUnipa2_movement(Node):
             goal_handle.publish_feedback(feedback)
             
             self.get_logger().info(
-                f"✅ [MOCK] Walking completato!\n"
+                f" [MOCK] Walking completato!\n"
                 f"       Distanza: {total_distance:.2f}m, Tempo: {feedback.elapsed_time:.1f}s"
             )
             
@@ -599,7 +599,7 @@ class QiUnipa2_movement(Node):
                 self.motion.moveTo(0.0, 0.0, theta)
                 time.sleep(0.5)  # Stabilizzazione
             except Exception as e:
-                self.get_logger().error(f"❌ Errore rotazione: {e}")
+                self.get_logger().error(f" Errore rotazione: {e}")
                 goal_handle.abort()
                 result = Walking.Result()
                 result.success = False
@@ -649,7 +649,7 @@ class QiUnipa2_movement(Node):
                     obstacles_detected += 1
                     
                     self.get_logger().warn(
-                        f"⚠️  OSTACOLO RILEVATO!\n"
+                        f"️  OSTACOLO RILEVATO!\n"
                         f"    Sonar: {current_sonar:.3f}m < {SONAR_THRESHOLD}m\n"
                         f"    Tentativo evasione #{recovery_attempts + 1}"
                     )
@@ -668,7 +668,7 @@ class QiUnipa2_movement(Node):
                         # Check se troppi tentativi totali
                         if recovery_attempts >= MAX_RECOVERY_ATTEMPTS:
                             self.get_logger().error(
-                                f"❌ Max recovery attempts raggiunto ({MAX_RECOVERY_ATTEMPTS})"
+                                f" Max recovery attempts raggiunto ({MAX_RECOVERY_ATTEMPTS})"
                             )
                             feedback.current_status = "obstacle_blocked"
                             goal_handle.publish_feedback(feedback)
@@ -707,7 +707,7 @@ class QiUnipa2_movement(Node):
                             recovery_attempts += 1
                             local_recovery_attempts += 1
                         except Exception as e:
-                            self.get_logger().error(f"❌ Errore evasione: {e}")
+                            self.get_logger().error(f" Errore evasione: {e}")
                             goal_handle.abort()
                             result = Walking.Result()
                             result.success = False
@@ -723,22 +723,22 @@ class QiUnipa2_movement(Node):
                         
                         self.get_logger().info(
                             f"   Sonar dopo evasione: {new_sonar:.3f}m "
-                            f"({'✓ LIBERO' if new_sonar >= SONAR_THRESHOLD else '✗ BLOCCATO'})"
+                            f"({' LIBERO' if new_sonar >= SONAR_THRESHOLD else ' BLOCCATO'})"
                         )
                         
                         if new_sonar >= SONAR_THRESHOLD:
-                            # ✅ PERCORSO LIBERO
+                            #  PERCORSO LIBERO
                             recovery_success = True
                             feedback.current_status = "obstacle_cleared"
                             feedback.front_sonar_distance = new_sonar
                             goal_handle.publish_feedback(feedback)
                             
                             self.get_logger().info(
-                                f"✅ Ostacolo superato dopo {local_recovery_attempts} tentativi"
+                                f" Ostacolo superato dopo {local_recovery_attempts} tentativi"
                             )
                             break
                         else:
-                            # ❌ ANCORA BLOCCATO - Riprova dall'altro lato
+                            #  ANCORA BLOCCATO - Riprova dall'altro lato
                             self.get_logger().warn(
                                 f"   Ancora bloccato, riprovo dall'altro lato..."
                             )
@@ -747,7 +747,7 @@ class QiUnipa2_movement(Node):
                     # Se esaurito loop recovery senza successo
                     if not recovery_success:
                         self.get_logger().error(
-                            f"❌ Impossibile superare ostacolo dopo {local_recovery_attempts} tentativi"
+                            f" Impossibile superare ostacolo dopo {local_recovery_attempts} tentativi"
                         )
                         feedback.current_status = "obstacle_blocked"
                         goal_handle.publish_feedback(feedback)
@@ -789,7 +789,7 @@ class QiUnipa2_movement(Node):
                         time.sleep(0.4)  # Stabilizzazione
                         distance_covered += step_distance
                     except Exception as e:
-                        self.get_logger().error(f"❌ Errore movimento: {e}")
+                        self.get_logger().error(f" Errore movimento: {e}")
                         goal_handle.abort()
                         result = Walking.Result()
                         result.success = False
@@ -803,7 +803,7 @@ class QiUnipa2_movement(Node):
                 time.sleep(0.1)
         
         except Exception as e:
-            self.get_logger().error(f"❌ Errore walking loop: {e}")
+            self.get_logger().error(f" Errore walking loop: {e}")
             goal_handle.abort()
             result = Walking.Result()
             result.success = False

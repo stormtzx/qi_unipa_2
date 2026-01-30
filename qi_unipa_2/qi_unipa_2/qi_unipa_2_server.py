@@ -146,7 +146,7 @@ class QiUnipa2_server(Node):
                 
                 if user_queue_size > 0 or test_queue_size > 0:
                     self.get_logger().info(
-                        f"🔍 Queue sizes - user: {user_queue_size}, test: {test_queue_size}"
+                        f" Queue sizes - user: {user_queue_size}, test: {test_queue_size}"
                     )
                 
                 # ========== QUEUE REGISTRAZIONE UTENTE ==========
@@ -157,15 +157,15 @@ class QiUnipa2_server(Node):
                     try:
                         last_user_message = request_queue_user.get(timeout=0.1)
                         messages_read += 1
-                        self.get_logger().info(f"🔍 Letto messaggio #{messages_read} dalla user queue")
+                        self.get_logger().info(f" Letto messaggio #{messages_read} dalla user queue")
                     except Exception as e:
-                        self.get_logger().error(f"❌ Errore lettura user queue: {e}")
+                        self.get_logger().error(f" Errore lettura user queue: {e}")
                         break
                 
                 if last_user_message:
                     if messages_read > 1:
                         self.get_logger().warn(
-                            f"⚠️ request_queue_user aveva {messages_read} msg - "
+                            f"️ request_queue_user aveva {messages_read} msg - "
                             f"scartati {messages_read-1} vecchi"
                         )
                     
@@ -188,13 +188,13 @@ class QiUnipa2_server(Node):
                         test_messages_read += 1
                         self.get_logger().info(f"Letto messaggio #{test_messages_read} dalla test queue")
                     except Exception as e:
-                        self.get_logger().error(f"❌ Errore lettura test queue: {e}")
+                        self.get_logger().error(f" Errore lettura test queue: {e}")
                         break
                 
                 if last_test_message:
                     if test_messages_read > 1:
                         self.get_logger().warn(
-                            f"⚠️ test_queue aveva {test_messages_read} msg - "
+                            f"️ test_queue aveva {test_messages_read} msg - "
                             f"scartati {test_messages_read-1} vecchi"
                         )
                     
@@ -210,7 +210,7 @@ class QiUnipa2_server(Node):
                 time.sleep(0.05)
             
             except Exception as e:
-                self.get_logger().error(f"❌ Errore queue processor: {e}")
+                self.get_logger().error(f" Errore queue processor: {e}")
                 time.sleep(1)
 
 
@@ -223,7 +223,7 @@ class QiUnipa2_server(Node):
         use_tablet = goal_handle.request.use_tablet
         
         self.get_logger().info(
-            f"📄 Browsing action: pagina={html_page}, tablet={use_tablet}"
+            f" Browsing action: pagina={html_page}, tablet={use_tablet}"
         )
         
         # Costruisci URL completo
@@ -240,7 +240,7 @@ class QiUnipa2_server(Node):
         feedback_msg.webserver_ip = self.http_host
         goal_handle.publish_feedback(feedback_msg)
         
-        self.get_logger().info(f"🌐 URL pagina: {page_url}")
+        self.get_logger().info(f" URL pagina: {page_url}")
         
         # RITORNA SUBITO - No timeout, no attesa
         result = Browsing.Result()
@@ -265,14 +265,14 @@ class QiUnipa2_server(Node):
             ).start()
             
             print(f"\n{'='*70}")
-            print(f"📱 MODALITÀ MOCK - BROWSER APERTO")
+            print(f" MODALITÀ MOCK - BROWSER APERTO")
             print(f"{'='*70}")
             print(f"URL: {page_url}")
             print(f"{'='*70}\n")
             
         except Exception as e:
-            self.get_logger().error(f"❌ Errore apertura browser: {e}")
-            print(f"⚠️ Impossibile aprire browser automaticamente. Apri manualmente: {page_url}")
+            self.get_logger().error(f" Errore apertura browser: {e}")
+            print(f"️ Impossibile aprire browser automaticamente. Apri manualmente: {page_url}")
     
     
     def _normalize_form_data(self, form_data_raw):
@@ -324,7 +324,7 @@ class QiUnipa2_server(Node):
         self.user_data_pub.publish(msg)
         
         self.get_logger().info(
-            f"📤 UserData pubblicato - Nome: {msg.nome} {msg.cognome}, "
+            f" UserData pubblicato - Nome: {msg.nome} {msg.cognome}, "
             f"Peso: {msg.peso}kg, Altezza: {msg.altezza}cm"
         )
 
@@ -498,7 +498,7 @@ class QiUnipa2_server(Node):
         
         else:
             msg.test_data = json.dumps(test_data)
-            self.get_logger().warn(f"⚠️ Formtype non riconosciuto: {formtype}")
+            self.get_logger().warn(f"️ Formtype non riconosciuto: {formtype}")
         
         # Pubblica il messaggio
         self.test_data_pub.publish(msg)

@@ -364,7 +364,7 @@ class QiUnipa2_audio(Node):
 
     def transcribe_audio_file(self, file_path):
         """ SINCRONO: Trascrive con Whisper"""
-        self.get_logger().info(f"🎤 [TRANSCRIBE] Inizio: {file_path}")
+        self.get_logger().info(f" [TRANSCRIBE] Inizio: {file_path}")
         
         if self.openai_client is None:
             self.get_logger().error("OpenAI client è None!")
@@ -373,7 +373,7 @@ class QiUnipa2_audio(Node):
         try:
             with open(file_path, 'rb') as audio_file:
                 file_size = os.path.getsize(file_path)
-                self.get_logger().info(f"🎤 [TRANSCRIBE] Size: {file_size} bytes")
+                self.get_logger().info(f" [TRANSCRIBE] Size: {file_size} bytes")
                 
                 # SINCRONO: 
                 response = self.openai_client.audio.transcriptions.create(
@@ -383,7 +383,7 @@ class QiUnipa2_audio(Node):
                 )
                 
                 transcription = response.text
-                self.get_logger().info(f"🎤 [TRANSCRIBE OK] {transcription}")
+                self.get_logger().info(f" [TRANSCRIBE OK] {transcription}")
                 return transcription
                 
         except Exception as e:

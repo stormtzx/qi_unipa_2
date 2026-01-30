@@ -295,7 +295,7 @@ class QiUnipa2_vision(Node):
             response.success = True
             response.message = f"Foto acquisita: {width}x{height}, salvata in {filename}"
 
-            self.get_logger().info(f"✓ Foto salvata: {filepath}")
+            self.get_logger().info(f" Foto salvata: {filepath}")
 
         except Exception as e:
             response.success = False
@@ -395,7 +395,7 @@ class QiUnipa2_vision(Node):
             response.message = f"Tracking attivato: {request.target_name} (distanza: {distance:.1f}m)"
             response.active_target = self.active_target
             
-            self.get_logger().info(f"✓ {response.message}")
+            self.get_logger().info(f" {response.message}")
             
         except Exception as e:
             response.success = False
@@ -403,7 +403,7 @@ class QiUnipa2_vision(Node):
             response.active_target = self.active_target or ""
             self.active_target = None
             self.tracking_state_pub.publish(TrackingState(is_tracking_on=False))
-            self.get_logger().error(f"❌ start_tracking: {e}")
+            self.get_logger().error(f" start_tracking: {e}")
         
         return response
 
@@ -433,12 +433,12 @@ class QiUnipa2_vision(Node):
             
             response.success = True
             response.message = "Tracking fermato"
-            self.get_logger().info("✓ Tracking fermato")
+            self.get_logger().info(" Tracking fermato")
             
         except Exception as e:
             response.success = False
             response.message = f"Errore: {str(e)}"
-            self.get_logger().error(f"❌ stop_tracking: {e}")
+            self.get_logger().error(f" stop_tracking: {e}")
         
         return response
 
@@ -489,12 +489,12 @@ class QiUnipa2_vision(Node):
             response.emotion = str(emotion_data.get("emotion", "neutral"))
             response.confidence = float(emotion_data.get("confidence", 0.0))
             
-            self.get_logger().info(f"✓ Emozione: {response.emotion} ({response.confidence:.2f})")
+            self.get_logger().info(f" Emozione: {response.emotion} ({response.confidence:.2f})")
             
         except Exception as e:
             response.emotion = "error"
             response.confidence = 0.0
-            self.get_logger().error(f"❌ Errore get_emotion: {e}")
+            self.get_logger().error(f" Errore get_emotion: {e}")
         
         finally:
             # 3. SPEGNI TRACKING (se era spento prima)
@@ -502,7 +502,7 @@ class QiUnipa2_vision(Node):
                 req_stop = StopTracking.Request()
                 res_stop = StopTracking.Response()
                 self.stop_tracking(req_stop, res_stop)
-                self.get_logger().debug("✓ Tracking fermato (interruttore)")
+                self.get_logger().debug(" Tracking fermato (interruttore)")
         
         return response
 
@@ -520,11 +520,11 @@ class QiUnipa2_vision(Node):
         try:
             tracking_was_off = (self.active_target is None)
             
-            self.get_logger().info(f"🔍 get_coordinates: active_target={self.active_target}")
+            self.get_logger().info(f" get_coordinates: active_target={self.active_target}")
             
             # MOCK MODE
             if self.tracker is None:
-                self.get_logger().info("🎭 MOCK MODE")
+                self.get_logger().info(" MOCK MODE")
                 time.sleep(1.0)
                 response.success = True
                 response.message = "[MOCK] Coordinate simulate"
@@ -539,7 +539,7 @@ class QiUnipa2_vision(Node):
             
             # 1. AVVIA TRACKING (se spento)
             if tracking_was_off:
-                self.get_logger().info("🚀 Avvio tracking People...")
+                self.get_logger().info(" Avvio tracking People...")
                 
                 req = StartTracking.Request()
                 req.target_name = "People"
@@ -551,56 +551,56 @@ class QiUnipa2_vision(Node):
                 if not res.success:
                     raise RuntimeError(f"Impossibile avviare tracking: {res.message}")
                 
-                self.get_logger().info(f"✅ Tracking avviato!")
+                self.get_logger().info(f" Tracking avviato!")
                 time.sleep(2.0)
             
             # 2. DEBUG: Verifica tracker state
-            self.get_logger().info(f"🔍 Tracker object: {self.tracker}")
-            self.get_logger().info(f"🔍 Active target: {self.active_target}")
+            self.get_logger().info(f" Tracker object: {self.tracker}")
+            self.get_logger().info(f" Active target: {self.active_target}")
             
             # 3. LEGGI COORDINATE
-            self.get_logger().info(f"📍 Inizio lettura coordinate (5 tentativi)...")
+            self.get_logger().info(f" Inizio lettura coordinate (5 tentativi)...")
             
             position = None
             valid_position = None
             
             for attempt in range(5):
                 try:
-                    # ✅ Chiamata corretta
+                    #  Chiamata corretta
                     position = self.tracker.getTargetPosition()
                     
-                    # ✅ LOG RAW - FONDAMENTALE
-                    self.get_logger().info(f"🔍 Tentativo {attempt+1}/5:")
+                    #  LOG RAW - FONDAMENTALE
+                    self.get_logger().info(f" Tentativo {attempt+1}/5:")
                     self.get_logger().info(f"   position={position}")
                     self.get_logger().info(f"   type={type(position)}")
                     
                     if position is None:
-                        self.get_logger().info(f"   ❌ Position è None")
+                        self.get_logger().info(f"    Position è None")
                     elif not isinstance(position, (list, tuple)):
-                        self.get_logger().info(f"   ❌ Position non è lista/tuple")
+                        self.get_logger().info(f"    Position non è lista/tuple")
                     elif len(position) < 2:
-                        self.get_logger().info(f"   ❌ Position ha len < 2: {len(position)}")
+                        self.get_logger().info(f"    Position ha len < 2: {len(position)}")
                     else:
                         # Tenta conversione
                         try:
                             theta = float(position[0])
                             distance = float(position[1])
                             
-                            self.get_logger().info(f"   ✅ theta={theta:.3f}, distance={distance:.3f}m")
+                            self.get_logger().info(f"    theta={theta:.3f}, distance={distance:.3f}m")
                             
                             # Validazione
                             if 0.2 <= distance <= 10.0:
-                                self.get_logger().info(f"   ✅ VALIDO! Uso questo.")
+                                self.get_logger().info(f"    VALIDO! Uso questo.")
                                 valid_position = position
                                 break
                             else:
-                                self.get_logger().info(f"   ❌ Distance fuori range (0.2-10.0m)")
+                                self.get_logger().info(f"    Distance fuori range (0.2-10.0m)")
                         
                         except (ValueError, TypeError) as e:
-                            self.get_logger().info(f"   ❌ Errore conversione: {e}")
+                            self.get_logger().info(f"    Errore conversione: {e}")
                 
                 except Exception as e:
-                    self.get_logger().info(f"   ❌ Exception: {e}")
+                    self.get_logger().info(f"    Exception: {e}")
                 
                 time.sleep(0.5)
             
@@ -626,7 +626,7 @@ class QiUnipa2_vision(Node):
             response.frame = "ROBOT"
             
             self.get_logger().info(
-                f"✓ SUCCESSO! Coordinate: x={x:.2f}m, y={y:.2f}m, "
+                f" SUCCESSO! Coordinate: x={x:.2f}m, y={y:.2f}m, "
                 f"dist={distance:.2f}m, theta={theta:.2f}rad"
             )
             
@@ -640,25 +640,25 @@ class QiUnipa2_vision(Node):
             response.distance = 0.0
             response.theta = 0.0
             response.frame = ""
-            self.get_logger().error(f"❌ get_tracked_subject_coordinates: {e}")
+            self.get_logger().error(f" get_tracked_subject_coordinates: {e}")
             
             import traceback
-            self.get_logger().error(f"❌ {traceback.format_exc()}")
+            self.get_logger().error(f" {traceback.format_exc()}")
         
         finally:
             # SPEGNI TRACKING (se era spento prima)
             if tracking_was_off:
-                self.get_logger().info(f"🛑 Stop tracking...")
+                self.get_logger().info(f" Stop tracking...")
                 
                 try:
                     req_stop = StopTracking.Request()
                     res_stop = StopTracking.Response()
                     self.stop_tracking(req_stop, res_stop)
-                    self.get_logger().info(f"🛑 Tracking fermato")
+                    self.get_logger().info(f" Tracking fermato")
                 except Exception as e:
-                    self.get_logger().error(f"❌ Errore stop: {e}")
+                    self.get_logger().error(f" Errore stop: {e}")
         
-        self.get_logger().info(f"🏁 FINE get_coordinates")
+        self.get_logger().info(f" FINE get_coordinates")
         
         return response
 
@@ -724,25 +724,25 @@ class QiUnipa2_vision(Node):
                 f"Depth image: {width}x{height}x{num_layers}, bytes={actual_size}"
             )
             
-            # ✅ CALCOLA LAYER REALI (ignora header se sbagliato)
+            #  CALCOLA LAYER REALI (ignora header se sbagliato)
             num_elements = actual_size // 2  # Numero di uint16
             num_pixels_per_frame = width * height
             calculated_layers = num_elements // num_pixels_per_frame
             
             if calculated_layers != num_layers:
                 self.get_logger().warn(
-                    f"⚠️ Header: {num_layers} layer, dati: {calculated_layers} layer → uso {calculated_layers}"
+                    f"️ Header: {num_layers} layer, dati: {calculated_layers} layer → uso {calculated_layers}"
                 )
                 num_layers = calculated_layers
             
             # RESHAPE
             if num_layers == 1:
                 depth_array = np.frombuffer(depth_binary, dtype=np.uint16).reshape((height, width))
-                self.get_logger().info("✓ Depth monocanale")
+                self.get_logger().info(" Depth monocanale")
             elif num_layers == 2:
                 full_array = np.frombuffer(depth_binary, dtype=np.uint16).reshape((height, width, 2))
                 depth_array = full_array[:, :, 0]  # Solo depth (primo layer)
-                self.get_logger().info("✓ Estratto depth da array 2-layer")
+                self.get_logger().info(" Estratto depth da array 2-layer")
             else:
                 raise ValueError(f"Layer inatteso: {num_layers}")
             
@@ -750,7 +750,7 @@ class QiUnipa2_vision(Node):
             if pixel_x < 0 or pixel_x >= width or pixel_y < 0 or pixel_y >= height:
                 raise ValueError(f"Pixel fuori bounds: ({pixel_x}, {pixel_y})")
             
-            # ✅ DIAGNOSTICA GLOBALE
+            #  DIAGNOSTICA GLOBALE
             depth_flat = depth_array.flatten()
             depth_nonzero = depth_flat[depth_flat > 0]
             
@@ -760,7 +760,7 @@ class QiUnipa2_vision(Node):
                 max_depth = np.max(depth_nonzero)
                 
                 self.get_logger().info(
-                    f"📊 Depth stats: min={min_depth}mm, median={median_depth:.0f}mm, max={max_depth}mm"
+                    f" Depth stats: min={min_depth}mm, median={median_depth:.0f}mm, max={max_depth}mm"
                 )
                 
                 # Verifica se depth sembra corrotto
@@ -788,10 +788,10 @@ class QiUnipa2_vision(Node):
             
             if is_valid_depth(depth_mm_center):
                 depth_mm = depth_mm_center
-                self.get_logger().info(f"✓ Depth valido: {depth_mm}mm")
+                self.get_logger().info(f" Depth valido: {depth_mm}mm")
             else:
                 # Tentativo 2: Finestra 3x3
-                self.get_logger().warn(f"⚠️ Centro invalido ({depth_mm_center}mm), provo 3x3...")
+                self.get_logger().warn(f"️ Centro invalido ({depth_mm_center}mm), provo 3x3...")
                 y_start, y_end = max(0, pixel_y-1), min(height, pixel_y+2)
                 x_start, x_end = max(0, pixel_x-1), min(width, pixel_x+2)
                 window = depth_array[y_start:y_end, x_start:x_end]
@@ -800,10 +800,10 @@ class QiUnipa2_vision(Node):
                 if len(valid) > 0:
                     depth_mm = int(np.median(valid))
                     attempts_log.append(f"median_3x3={depth_mm}mm")
-                    self.get_logger().info(f"✓ Mediana 3x3: {depth_mm}mm ({len(valid)}/9)")
+                    self.get_logger().info(f" Mediana 3x3: {depth_mm}mm ({len(valid)}/9)")
                 else:
                     # Tentativo 3: Finestra 5x5
-                    self.get_logger().warn("⚠️ Provo 5x5...")
+                    self.get_logger().warn("️ Provo 5x5...")
                     y_start, y_end = max(0, pixel_y-2), min(height, pixel_y+3)
                     x_start, x_end = max(0, pixel_x-2), min(width, pixel_x+3)
                     window = depth_array[y_start:y_end, x_start:x_end]
@@ -812,7 +812,7 @@ class QiUnipa2_vision(Node):
                     if len(valid) > 0:
                         depth_mm = int(np.median(valid))
                         attempts_log.append(f"median_5x5={depth_mm}mm")
-                        self.get_logger().info(f"✓ Mediana 5x5: {depth_mm}mm ({len(valid)}/25)")
+                        self.get_logger().info(f" Mediana 5x5: {depth_mm}mm ({len(valid)}/25)")
                     else:
                         raise ValueError(
                             f"Depth invalido: centro={depth_mm_center}mm, "
@@ -859,7 +859,7 @@ class QiUnipa2_vision(Node):
             response.confidence = float(confidence)
             
             self.get_logger().info(
-                f"✓ Coords: ({robot_x:.2f}, {robot_y:.2f}, {robot_z:.2f})m, "
+                f" Coords: ({robot_x:.2f}, {robot_y:.2f}, {robot_z:.2f})m, "
                 f"dist={distance:.2f}m, conf={confidence:.2f}"
             )
             
@@ -871,7 +871,7 @@ class QiUnipa2_vision(Node):
             response.z = 0.0
             response.distance = 0.0
             response.confidence = 0.0
-            self.get_logger().error(f"❌ get_camera_coordinates: {response.message}")
+            self.get_logger().error(f" get_camera_coordinates: {response.message}")
             
         finally:
             if vision_client is not None and self.vision_device is not None:
